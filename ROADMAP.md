@@ -20,11 +20,13 @@
   - Tag `v0.1.0` + GitHub Release with report artifacts
 
 ## Decision Gates (from ARC³ C.3)
+
 - **GO:** H1, H4, H5 = Pass at baseline; H2/H3 = Pass or Partial
 - **PIVOT:** Any of H1/H4/H5 = Partial → try buffer/timestamp changes
 - **KILL:** Any of H1/H4/H5 = Fail after two ablation iterations
 
 ## Risks & Mitigations
+
 - OS scheduling variance → document kernel; optional sched prio flag
 - Timer precision → use `CLOCK_MONOTONIC_RAW`; measure overhead
 

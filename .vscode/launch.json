@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "LSL: Synthetic Outlet",
+      "type": "python",
+      "request": "launch",
+      "module": "lsl_harness.fixtures.synthetic_outlet",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "LSL: Measure (10s)",
+      "type": "python",
+      "request": "launch",
+      "module": "lsl_harness.cli",
+      "args": [
+        "measure",
+        "--selector-key", "type",
+        "--selector-val", "EEG",
+        "--duration-s", "10",
+        "--chunk", "32",
+        "--nominal-rate", "1000",
+        "--out", "results/baseline"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "LSL: Report (baseline)",
+      "type": "python",
+      "request": "launch",
+      "module": "lsl_harness.cli",
+      "args": ["report", "results/baseline"],
+      "console": "integratedTerminal"
+    }
+  ]
+}
