@@ -22,7 +22,20 @@ def measure(
     nominal_rate: float = 1000.0,
     out: Path = Path("results/run_001"),
 ):
-    """Collect samples and write JSON+CSV artifacts for reporting."""
+    """Collect samples from an LSL stream and write JSON+CSV artifacts for reporting.
+
+    Args:
+        selector_key (str): LSL resolve key (e.g., 'name', 'type').
+        selector_val (str): LSL resolve value.
+        duration_s (float): Duration in seconds to collect samples.
+        chunk (int): Max number of samples to pull per chunk.
+        nominal_rate (float): Nominal sample rate of the stream.
+        out (Path): Output directory for results (created if missing).
+
+    Side Effects:
+        Writes latency.csv, times.csv, and summary.json to the output directory.
+        Prints completion message to the console.
+    """
     from .measure import InletWorker
 
     out.mkdir(parents=True, exist_ok=True)
@@ -75,7 +88,15 @@ def measure(
 
 @app.command()
 def report(run: Path = None):
-    """Render HTML report from artifacts."""
+    """Render an HTML report from measurement artifacts in a results directory.
+
+    Args:
+        run (Path, optional): Path to the results directory containing summary.json.
+            If not provided, prompts for a required argument.
+
+    Side Effects:
+        Renders and writes an HTML report to the results directory.
+    """
     from .report import render_report
 
     if run is None:
