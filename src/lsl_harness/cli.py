@@ -38,7 +38,7 @@ def measure(
 
     # Save raw per-sample latency and times for plots
     lat_ms, src_times, recv_times = [], [], []
-    for data, ts, recv in collected:
+    for _data, ts, recv in collected:
         lat_ms.extend([(recv - t) * 1000.0 for t in ts])
         src_times.extend(ts.tolist())
         recv_times.extend([recv] * len(ts))
@@ -51,7 +51,7 @@ def measure(
     with open(out / "times.csv", "w", newline="") as f:
         wr = csv.writer(f)
         wr.writerow(["src_time", "recv_time"])
-        wr.writerows([[s, r] for s, r in zip(src_times, recv_times)])
+        wr.writerows([[s, r] for s, r in zip(src_times, recv_times, strict=True)])
 
     summary = compute_metrics(collected, nominal_rate, ring_drops=w.ring.drops)
     meta = {

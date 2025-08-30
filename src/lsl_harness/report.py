@@ -1,3 +1,4 @@
+"""Functions for generating an HTML report from measurement results."""
 import json
 from pathlib import Path
 
@@ -7,6 +8,22 @@ import numpy as np
 
 
 def render_report(run_dir: Path):
+    """Generate an HTML report with plots from saved run data.
+
+    This function reads ``summary.json``, ``latency.csv``, and optionally
+    ``times.csv`` from the specified run directory. It generates a latency
+    histogram plot, and if ``times.csv`` is available, a drift plot. It then
+    renders an HTML report using a Jinja2 template.
+
+    The following files are created in ``run_dir``:
+    - ``latency_hist.png``: A histogram of latencies.
+    - ``drift_plot.png``: A plot of clock offset over time (optional).
+    - ``report.html``: The final HTML report.
+
+    Args:
+      run_dir: The path to the directory containing the run data.
+
+    """
     run_dir = Path(run_dir)
     s = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
 

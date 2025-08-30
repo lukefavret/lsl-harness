@@ -53,7 +53,8 @@ select = [
     "I",
     "UP",
     "B",
-] # errors, pyflakes, import sort, pyupgrade, bugbear
+    "D",
+] # errors, pyflakes, import sort, pyupgrade, bugbear, pydocstyle
 ignore = []
 
 [tool.ruff.lint.isort]
