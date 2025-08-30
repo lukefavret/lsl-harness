@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lsl-harness"                                                                     # distribution name (what PyPI would see)
+version = "0.1.0"
+description = "Measure latency, jitter, drift, drops, and effective Hz for LSL streams."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Luke Favret" }]
+keywords = ["lsl", "neurotech", "latency", "jitter", "drift"]
+
+# Runtime dependencies (pin with major.minor for reproducibility)
+dependencies = [
+    "pylsl==1.16.*",
+    "numpy==2.0.*",
+    "jinja2==3.1.*",
+    "matplotlib==3.9.*",
+    "typer[all]==0.16.*",
+    "click>=8.1.7,<9",
+    "rich>=13.7,<14"
+]
+
+[project.scripts]
+# CLI entrypoint: `lsl-harness ...` runs lsl_harness.cli:app (Typer)
+lsl-harness = "lsl_harness.cli:app"
+
+[project.urls]
+homepage = "https://github.com/lukefavret/lsl-harness"
+repository = "https://github.com/lukefavret/lsl-harness"
+issues = "https://github.com/lukefavret/lsl-harness/issues"
+
+# Tell Hatchling where your package lives when using the "src/" layout
+[tool.hatch.build.targets.wheel]
+packages = ["src/lsl_harness"]
+
+# Grouped (non-runtime) dependencies for development, docs, etc.
+[dependency-groups]
+dev = ["pytest==8.*", "pytest-cov==5.*", "mypy==1.11.*", "ruff==0.6.*"]
+docs = ["mkdocs-material", "mkdocstrings[python]", "griffe"]
+
+# Ruff (linter/formatter-ish) config
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+] # errors, pyflakes, import sort, pyupgrade, bugbear
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["lsl_harness"]
+
+# Mypy (type checker) config — start lenient and tighten later
+[tool.mypy]
+python_version = "3.11"
+mypy_path = ["src"]
+warn_unused_configs = true
+no_implicit_optional = true
+pretty = true
+
+# Pytest defaults
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require LSL streams or precise clocks (skipped on CI)",
+]

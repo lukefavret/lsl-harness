@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8">
+<title>LSL Harness Report</title>
+<h1>LSL Harness Report</h1>
+<ul>
+  <li>p50: {{ p50_ms | round(2) }} ms</li>
+  <li>p95: {{ p95_ms | round(2) }} ms</li>
+  <li>p99: {{ p99_ms | round(2) }} ms</li>
+  <li>Jitter (p95-p50): {{ jitter_ms | round(2) }} ms</li>
+  <li>Effective Hz: {{ eff_hz | round(2) }}</li>
+  <li>Drift: {{ drift_ms_per_min | round(2) }} ms/min</li>
+  <li>Drops (est): {{ drop_estimate | round(2) }} %</li>
+  <li>Ring overwrites: {{ ring_drops }}</li>
+</ul>
+<img src="latency_hist.png" alt="latency histogram">
+{% if drift_plot %}<img src="drift_plot.png" alt="drift plot">{% endif %}
+<pre>{{ env|tojson(indent=2) }}</pre>
