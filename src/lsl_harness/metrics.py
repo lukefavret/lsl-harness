@@ -1,3 +1,4 @@
+"""Functions for computing performance metrics from LSL chunk data."""
 from dataclasses import dataclass
 
 import numpy as np
@@ -5,6 +6,20 @@ import numpy as np
 
 @dataclass
 class Summary:
+    """A container for computed performance metrics.
+
+    Attributes:
+      p50_ms: p50 (median) latency in **milliseconds**.
+      p95_ms: p95 latency in **milliseconds**.
+      p99_ms: p99 latency in **milliseconds**.
+      jitter_ms: Jitter (p95 - p50 latency) in **milliseconds**.
+      eff_hz: Effective sample rate in **Hz**.
+      drift_ms_per_min: Clock drift in **milliseconds/minute**.
+      drop_estimate: Estimated percentage of dropped samples.
+      n_samples: Total number of samples received.
+      ring_drops: Count of items dropped by the ring buffer.
+    """
+
     p50_ms: float
     p95_ms: float
     p99_ms: float
@@ -17,12 +32,34 @@ class Summary:
 
 
 def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary:
+    """Compute latency, jitter, effective sample rate, drift, and drop estimate.
+
+    Args:
+      chunks: Iterable of tuples ``(data, ts, recv)`` where:
+        * ``data``: ``np.ndarray`` of shape ``(n_samples, n_channels)`` (float32).
+        * ``ts``: Source timestamps in **seconds** (float64), length ``n_samples``.
+        * ``recv``: Single **receive time** in **seconds** (float) for the entire chunk.
+      nominal_rate: Claimed sample rate of the stream, in **Hz**.
+      ring_drops: Count of items overwritten or rejected by the ring buffer.
+
+    Returns:
+      Summary: p50/p95/p99 **latency (ms)**, jitter (ms), effective Hz,
+      drift (**ms/min**), drop_estimate (%), total samples, and ring_drops.
+
+    Raises:
+      ValueError: If the total number of samples is less than 8.
+
+    Notes:
+      * Latency uses one receive timestamp per chunk (approximation).
+      * Drift is the least-squares slope of ``(recv - src)`` over time, reported in ms/min.
+      * Drop estimate compares expected (nominal_rate × duration) vs. received samples.
+    """
     latencies = []
     recv_times = []
     src_times = []
     n_total = 0
 
-    for data, ts, recv in chunks:
+    for _data, ts, recv in chunks:
         n = len(ts)
         if n == 0:
             continue
