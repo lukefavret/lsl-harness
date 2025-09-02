@@ -1,5 +1,6 @@
 """Manages LSL stream data acquisition in a background thread."""
 import threading
+import warnings
 
 import numpy as np
 from pylsl import StreamInlet, local_clock, resolve_byprop, resolve_stream
@@ -81,9 +82,38 @@ class InletWorker:
                 )
 
     def stop(self):
-        """Signal the background thread to stop and wait for it to exit."""
+        """Signal the background thread to stop, wait for it to exit, and close the inlet.
+
+        This method sets the stop event, waits for the thread to exit, closes the LSL inlet,
+        and may issue warnings if the thread does not stop gracefully or if closing the inlet fails.
+        """
+        if self._stop.is_set():
+            return
         self._stop.set()
-        if self.thread:
-            self.thread.join(self.JOIN_TIMEOUT)  # Wait for the thread to finish, with timeout
+
+        # Handle the inlet first to avoid blocking issues.
         if self.inlet:
-            self.inlet.close()  # Good place for cleanup
+            try:
+                self.inlet.close()
+            except Exception as e:
+                warnings.warn(
+                    f"Exception occurred while closing inlet: {e}",
+                    stacklevel=2
+                )
+            finally:
+                # Ensure the reference is always cleared.
+                self.inlet = None
+        
+        # Handle the thread second.
+        if self.thread:
+            self.thread.join(self.JOIN_TIMEOUT)
+            if self.thread.is_alive():
+                warnings.warn(
+                    f"InletWorker thread did not stop gracefully within the timeout ({self.JOIN_TIMEOUT} seconds). "
+                    "Python does not support forceful termination of threads; "
+                    "resources may not be fully cleaned up. Restart the process if necessary.",
+                    stacklevel=2)
+            # Clear thread reference after it has been handled.
+            self.thread = None
+
+        
