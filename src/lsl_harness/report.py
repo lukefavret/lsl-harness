@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 LATENCY_CSV_FILE = "latency.csv"
-
 TIMES_CSV_FILE = "times.csv"
+SUMMARY_JSON_FILE = "summary.json"
 
 LATENCY_HIST_BINS = 50
 PLOT_DPI = 120
@@ -35,10 +35,16 @@ def render_report(run_dir: Path) -> None:
     """
     # --- Load summary data ---
     run_dir = Path(run_dir)
-    summary_data = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    summary_path = run_dir / SUMMARY_JSON_FILE
+    if not summary_path.exists():
+        raise FileNotFoundError(f"Missing required file: {summary_path}")
+    summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
 
     # --- Generate latency histogram plot ---
-    latency_data = np.loadtxt(run_dir / LATENCY_CSV_FILE, delimiter=",", skiprows=1, ndmin=1)
+    latency_csv_path = run_dir / LATENCY_CSV_FILE
+    if not latency_csv_path.exists():
+        raise FileNotFoundError(f"Missing required file: {latency_csv_path}")
+    latency_data = np.loadtxt(latency_csv_path, delimiter=",", skiprows=1, ndmin=1)
     plt.figure()
     plt.hist(latency_data, LATENCY_HIST_BINS)
     plt.xlabel("Latency (ms)")
