@@ -1,4 +1,5 @@
 """Functions for computing performance metrics from LSL chunk data."""
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,7 +32,7 @@ class Summary:
     ring_drops: int
 
 
-def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary:
+def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nominal_rate: float, ring_drops: int = 0) -> Summary:
     """Compute latency, jitter, effective sample rate, drift, and drop estimate from LSL chunk data.
 
     Args:
