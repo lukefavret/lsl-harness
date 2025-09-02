@@ -13,10 +13,10 @@ class Summary:
         p95_ms (float): p95 latency in milliseconds.
         p99_ms (float): p99 latency in milliseconds.
         jitter_ms (float): Jitter (p95 - p50 latency) in milliseconds.
-        eff_hz (float): Effective sample rate in Hz.
+        effective_sample_rate_hz (float): Effective sample rate in Hz.
         drift_ms_per_min (float): Clock drift in milliseconds per minute.
         drop_estimate (float): Estimated percentage of dropped samples.
-        n_samples (int): Total number of samples received.
+        total_sample_count (int): Total number of samples received.
         ring_drops (int): Count of items dropped by the ring buffer.
     """
 
@@ -24,10 +24,10 @@ class Summary:
     p95_ms: float
     p99_ms: float
     jitter_ms: float
-    eff_hz: float
+    effective_sample_rate_hz: float
     drift_ms_per_min: float
     drop_estimate: float  # %
-    n_samples: int
+    total_sample_count: int
     ring_drops: int
 
 
@@ -43,8 +43,8 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
         ring_drops (int, optional): Count of items overwritten or rejected by the ring buffer. Defaults to 0.
 
     Returns:
-        Summary: Container with p50/p95/p99 latency (ms), jitter (ms), effective Hz,
-            drift (ms/min), drop_estimate (%), total samples, and ring_drops.
+        Summary: Container with p50/p95/p99 latency (ms), jitter (ms), effective sample rate (Hz),
+            drift (ms/min), drop_estimate (%), total sample count, and ring_drops.
 
     Raises:
         ValueError: If the total number of samples is less than 8.
@@ -58,13 +58,13 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
     latencies = []
     recv_times = []
     src_times = []
-    cumulative_sample_count = 0
+    total_sample_count = 0
 
     for _data, source_timestamps, chunk_rcv_timestamp in chunks:
         sample_count = len(source_timestamps)
         if sample_count == 0:
             continue
-        cumulative_sample_count += sample_count
+        total_sample_count += sample_count
         # Compute per-sample latency (ms) for this chunk
         latencies.extend((chunk_rcv_timestamp - source_timestamps) * 1000.0)
         # Store receive time for each sample in the chunk
@@ -73,7 +73,7 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
         src_times.extend(source_timestamps)
 
     # --- Validate sample count ---
-    if cumulative_sample_count < 8:
+    if total_sample_count < 8:
         raise ValueError("Not enough samples")
 
     # --- Convert lists to numpy arrays for efficient computation ---
@@ -87,7 +87,7 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
 
     # --- Compute effective sample rate (Hz) ---
     duration = float(max(src_timestamps_array[-1] - src_timestamps_array[0], 1e-6))
-    effective_sample_rate_hz = cumulative_sample_count / duration
+    effective_sample_rate_hz = total_sample_count / duration
 
     # --- Estimate clock drift (ms/min) using least-squares regression ---
     offset_ms = (recv_timestamp_array - src_timestamps_array) * 1000.0
@@ -98,7 +98,7 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
 
     # --- Estimate drop percentage compared to expected sample count ---
     expected = nominal_rate * duration
-    drops_pct = float(max(0.0, (expected - cumulative_sample_count) / max(expected, 1.0) * 100.0))
+    drops_percentage = float(max(0.0, (expected - total_sample_count) / max(expected, 1.0) * 100.0))
 
     # --- Package results in Summary dataclass ---
     return Summary(
@@ -108,7 +108,7 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
         float(jitter),
         float(effective_sample_rate_hz),
         float(drift_ms_per_min),
-        drops_pct,
-        int(cumulative_sample_count),
+        drops_percentage,
+        int(total_sample_count),
         int(ring_drops),
     )
