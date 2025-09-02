@@ -33,7 +33,7 @@ def measure(
     while time.time() < t_end:
         collected.extend(w.ring.drain_upto(16))
         time.sleep(0.01)
-    w.stop_now()
+    w.stop()
     collected.extend(w.ring.drain_upto(1_000_000))
 
     # Save raw per-sample latency and times for plots

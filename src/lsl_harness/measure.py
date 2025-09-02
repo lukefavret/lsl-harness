@@ -1,5 +1,6 @@
 """Manages LSL stream data acquisition in a background thread."""
 import threading
+import warnings
 
 import numpy as np
 from pylsl import StreamInlet, local_clock, resolve_byprop, resolve_stream
@@ -38,7 +39,9 @@ class InletWorker:
         self.timeout = timeout
         self.ring = Ring(ring_capacity, drop_oldest=True)
         self.inlet = None
+        self.thread = None
         self._stop = threading.Event()
+        self.JOIN_TIMEOUT = 5.0  # seconds
 
     def start(self):
         """Resolve the LSL stream and start the data acquisition thread.
@@ -61,8 +64,8 @@ class InletWorker:
         if not streams:
             raise RuntimeError(f"No LSL stream matching {key}=={val}")
         self.inlet = StreamInlet(streams[0], max_buflen=5, max_chunklen=0, recover=True)
-        t = threading.Thread(target=self._run, daemon=True)
-        t.start()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
 
     def _run(self):
         """Run the main loop for the background data acquisition thread.
@@ -78,6 +81,39 @@ class InletWorker:
                     (np.array(data, dtype=np.float32), np.array(ts, dtype=np.float64), recv)
                 )
 
-    def stop_now(self):
-        """Signal the background thread to stop."""
+    def stop(self):
+        """Signal the background thread to stop, wait for it to exit, and close the inlet.
+
+        This method sets the stop event, waits for the thread to exit, closes the LSL inlet,
+        and may issue warnings if the thread does not stop gracefully or if closing the inlet fails.
+        """
+        if self._stop.is_set():
+            return
         self._stop.set()
+
+        # Handle the inlet first to avoid blocking issues.
+        if self.inlet:
+            try:
+                self.inlet.close()
+            except Exception as e:
+                warnings.warn(
+                    f"Exception occurred while closing inlet: {e}",
+                    stacklevel=2
+                )
+            finally:
+                # Ensure the reference is always cleared.
+                self.inlet = None
+        
+        # Handle the thread second.
+        if self.thread:
+            self.thread.join(self.JOIN_TIMEOUT)
+            if self.thread.is_alive():
+                warnings.warn(
+                    f"InletWorker thread did not stop gracefully within the timeout ({self.JOIN_TIMEOUT} seconds). "
+                    "Python does not support forceful termination of threads; "
+                    "resources may not be fully cleaned up. Restart the process if necessary.",
+                    stacklevel=2)
+            # Clear thread reference after it has been handled.
+            self.thread = None
+
+        
