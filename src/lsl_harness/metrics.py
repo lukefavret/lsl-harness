@@ -53,7 +53,7 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
     Notes:
         Latency uses one receive timestamp per chunk (approximation).
         Drift is the least-squares slope of (recv - src) over time, reported in ms/min.
-        Drop estimate compares expected (nominal_rate × duration) vs. received samples.
+        Drop estimate compares expected (nominal_rate * duration) vs. received samples.
     """
     # --- Aggregate all samples and timestamps from chunks ---
     latencies = []
