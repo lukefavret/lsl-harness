@@ -13,26 +13,29 @@ TIMES_CSV_FILE = "times.csv"
 LATENCY_HIST_BINS = 50
 
 def render_report(run_dir: Path) -> None:
-    """Generate an HTML report with plots from saved run data.
+    """Generates an HTML report with plots from saved run data.
 
-    This function reads ``summary.json``, ``latency.csv``, and optionally
-    ``times.csv`` from the specified run directory. It generates a latency
-    histogram plot, and if ``times.csv`` is available, a drift plot. It then
-    renders an HTML report using a Jinja2 template.
-
-    The following files are created in ``run_dir``:
-    - ``latency_hist.png``: A histogram of latencies.
-    - ``drift_plot.png``: A plot of clock offset over time (optional).
-    - ``report.html``: The final HTML report.
+    Reads ``summary.json``, ``latency.csv``, and optionally ``times.csv`` from the specified run directory.
+    Generates a latency histogram plot, and if ``times.csv`` is available, a drift plot.
+    Renders an HTML report using a Jinja2 template.
 
     Args:
-      run_dir: The path to the directory containing the run data.
+        run_dir (Path): Path to the directory containing the run data.
 
+    Returns:
+        None
+
+    Side Effects:
+        Creates the following files in ``run_dir``:
+            - ``latency_hist.png``: Histogram of latencies.
+            - ``drift_plot.png``: Plot of clock offset over time (optional).
+            - ``report.html``: The final HTML report.
     """
+    # --- Load summary data ---
     run_dir = Path(run_dir)
     summary_data = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
 
-    # Latency histogram
+    # --- Generate latency histogram plot ---
     latency_data = np.loadtxt(run_dir / LATENCY_CSV_FILE, delimiter=",", skiprows=1, ndmin=1)
     plt.figure()
     plt.hist(latency_data, LATENCY_HIST_BINS)
@@ -42,11 +45,12 @@ def render_report(run_dir: Path) -> None:
     plt.savefig(run_dir / "latency_hist.png", dpi=120, bbox_inches="tight")
     plt.close()
 
-    # Optional drift plot if times.csv exists
+    # --- Generate drift plot if times.csv exists ---
     drift_plot = False
     times_path = run_dir / TIMES_CSV_FILE
     if times_path.exists():
         arr = np.loadtxt(times_path, delimiter=",", skiprows=1)
+        # If only one row is present, np.loadtxt returns a 1D array; reshape to 2D for consistency
         if arr.ndim == 1:
             arr = arr[None, :]
         src = arr[:, 0]
@@ -62,6 +66,7 @@ def render_report(run_dir: Path) -> None:
         plt.close()
         drift_plot = True
 
+    # --- Render HTML report using Jinja2 template ---
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates"), autoescape=False
     )
