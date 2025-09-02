@@ -74,10 +74,10 @@ def measure(
     source_timestamps = []
     receive_timestamps = []
 
-    for _data, ts, recv in collected_samples:
-        latencies_ms.extend([(recv - t) * 1000.0 for t in ts])
-        source_timestamps.extend(ts.tolist())
-        receive_timestamps.extend([recv] * len(ts))
+    for _data, source_timestamp_list, receive_timestamp in collected_samples:
+        latencies_ms.extend([(receive_timestamp - t) * 1000.0 for t in source_timestamp_list])
+        source_timestamps.extend(source_timestamp_list.tolist())
+        receive_timestamps.extend([receive_timestamp] * len(source_timestamp_list))
 
     with open(output_directory / "latency.csv", "w", newline="") as latency_file:
         csv_writer = csv.writer(latency_file)
