@@ -26,6 +26,7 @@ dependencies = [
 [project.scripts]
 # CLI entrypoint: `lsl-harness ...` runs lsl_harness.cli:app (Typer)
 lsl-harness = "lsl_harness.cli:app"
+synthetic-outlet = "lsl_harness.fixtures.synthetic_outlet:main"
 
 [project.urls]
 homepage = "https://github.com/lukefavret/lsl-harness"
@@ -56,6 +57,9 @@ select = [
     "D",
 ] # errors, pyflakes, import sort, pyupgrade, bugbear, pydocstyle
 ignore = []
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.isort]
 known-first-party = ["lsl_harness"]
