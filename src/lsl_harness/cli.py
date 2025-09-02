@@ -19,7 +19,10 @@ from rich import print
 
 from .metrics import compute_metrics
 
+LATENCY_CSV_FILE = "latency.csv"
 LATENCY_CSV_HEADERS = ["latency_ms"]
+
+TIME_CSV_FILE = "times.csv"
 TIMES_CSV_HEADERS = ["src_time", "recv_time"]
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -73,27 +76,28 @@ def measure(
     collected_samples.extend(inlet_worker.ring.drain_upto(1_000_000))
     inlet_worker.stop()
 
-    # Save raw per-sample latency and timestamps for plotting.
-    latencies_ms = []
-    source_timestamps = []
-    receive_timestamps = []
+    # Use 'with' to manage both file handles safely
+    with open(output_directory / LATENCY_CSV_FILE, "w", newline="") as latency_file, \
+         open(output_directory / TIME_CSV_FILE, "w", newline="") as times_file:
 
-    for _data, source_timestamp_list, receive_timestamp in collected_samples:
-        latencies_ms.extend([(receive_timestamp - t) * 1000.0 for t in source_timestamp_list])
-        source_timestamps.extend(source_timestamp_list.tolist())
-        receive_timestamps.extend([receive_timestamp] * len(source_timestamp_list))
+        # Create CSV writers for both files
+        latency_writer = csv.writer(latency_file)
+        times_writer = csv.writer(times_file)
 
-    with open(output_directory / "latency.csv", "w", newline="") as latency_file:
-        csv_writer = csv.writer(latency_file)
-        csv_writer.writerow(LATENCY_CSV_HEADERS)
-        csv_writer.writerows([[x] for x in latencies_ms])
+        # Write headers
+        latency_writer.writerow(LATENCY_CSV_HEADERS)
+        times_writer.writerow(TIMES_CSV_HEADERS)
 
-    with open(output_directory / "times.csv", "w", newline="") as times_file:
-        csv_writer = csv.writer(times_file)
-        csv_writer.writerow(TIMES_CSV_HEADERS)
-        csv_writer.writerows(
-            [[s, r] for s, r in zip(source_timestamps, receive_timestamps, strict=True)]
-        )
+        # Process each chunk of collected samples
+        for _data, src_timestamp_list, receive_timestamp in collected_samples:
+            # Iterate through each individual sample within the chunk
+            for src_timestamp in src_timestamp_list:
+                # Calculate latency for the single sample
+                latency_ms = (receive_timestamp - src_timestamp) * 1000.0
+                
+                # Write the individual rows directly to the files
+                latency_writer.writerow([latency_ms])
+                times_writer.writerow([src_timestamp, receive_timestamp])
 
     summary = compute_metrics(collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops)
     metadata = {
