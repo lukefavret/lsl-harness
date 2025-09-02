@@ -77,7 +77,7 @@ def render_report(run_dir: Path) -> None:
         plt.xlabel("Time (s)")
         plt.ylabel("Offset (ms)")
         plt.title("Offset vs Time (Drift)")
-        plt.savefig(run_dir / "drift_plot.png", dpi=120, bbox_inches="tight")
+        plt.savefig(run_dir / "drift_plot.png", dpi=PLOT_DPI, bbox_inches="tight")
         plt.close()
         drift_plot = True
 
