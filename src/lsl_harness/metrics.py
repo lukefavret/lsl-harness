@@ -54,6 +54,7 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
         Drift is the least-squares slope of (recv - src) over time, reported in ms/min.
         Drop estimate compares expected (nominal_rate × duration) vs. received samples.
     """
+    # --- Aggregate all samples and timestamps from chunks ---
     latencies = []
     recv_times = []
     src_times = []
@@ -64,32 +65,42 @@ def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary
         if sample_count == 0:
             continue
         cumulative_sample_count += sample_count
-        latencies.extend((chunk_rcv_timestamp - source_timestamps) * 1000.0)  # ms
+        # Compute per-sample latency (ms) for this chunk
+        latencies.extend((chunk_rcv_timestamp - source_timestamps) * 1000.0)
+        # Store receive time for each sample in the chunk
         recv_times.extend([chunk_rcv_timestamp] * sample_count)
+        # Store source timestamps for each sample
         src_times.extend(source_timestamps)
 
+    # --- Validate sample count ---
     if cumulative_sample_count < 8:
         raise ValueError("Not enough samples")
 
+    # --- Convert lists to numpy arrays for efficient computation ---
     latency_array = np.array(latencies, dtype=np.float64)
     recv_timestamp_array = np.array(recv_times, dtype=np.float64)
     src_timestamps_array = np.array(src_times, dtype=np.float64)
 
+    # --- Compute latency percentiles and jitter ---
     p50, p95, p99 = np.percentile(latency_array, [50, 95, 99])
     jitter = p95 - p50
 
+    # --- Compute effective sample rate (Hz) ---
     duration = float(max(src_timestamps_array[-1] - src_timestamps_array[0], 1e-6))
     effective_sample_rate_hz = cumulative_sample_count / duration
 
+    # --- Estimate clock drift (ms/min) using least-squares regression ---
     offset_ms = (recv_timestamp_array - src_timestamps_array) * 1000.0
     t_norm = src_timestamps_array - src_timestamps_array[0]
-    A = np.vstack([t_norm, np.ones_like(t_norm)]).T
-    slope_ms_per_s, _ = np.linalg.lstsq(A, offset_ms, rcond=None)[0]
+    regression_matrix = np.vstack([t_norm, np.ones_like(t_norm)]).T
+    slope_ms_per_s, _ = np.linalg.lstsq(regression_matrix, offset_ms, rcond=None)[0]
     drift_ms_per_min = float(slope_ms_per_s * 60.0)
 
+    # --- Estimate drop percentage compared to expected sample count ---
     expected = nominal_rate * duration
     drops_pct = float(max(0.0, (expected - cumulative_sample_count) / max(expected, 1.0) * 100.0))
 
+    # --- Package results in Summary dataclass ---
     return Summary(
         float(p50),
         float(p95),
