@@ -6,18 +6,18 @@ import numpy as np
 
 @dataclass
 class Summary:
-    """A container for computed performance metrics.
+    """Container for computed performance metrics.
 
     Attributes:
-      p50_ms: p50 (median) latency in **milliseconds**.
-      p95_ms: p95 latency in **milliseconds**.
-      p99_ms: p99 latency in **milliseconds**.
-      jitter_ms: Jitter (p95 - p50 latency) in **milliseconds**.
-      eff_hz: Effective sample rate in **Hz**.
-      drift_ms_per_min: Clock drift in **milliseconds/minute**.
-      drop_estimate: Estimated percentage of dropped samples.
-      n_samples: Total number of samples received.
-      ring_drops: Count of items dropped by the ring buffer.
+        p50_ms (float): p50 (median) latency in milliseconds.
+        p95_ms (float): p95 latency in milliseconds.
+        p99_ms (float): p99 latency in milliseconds.
+        jitter_ms (float): Jitter (p95 - p50 latency) in milliseconds.
+        eff_hz (float): Effective sample rate in Hz.
+        drift_ms_per_min (float): Clock drift in milliseconds per minute.
+        drop_estimate (float): Estimated percentage of dropped samples.
+        n_samples (int): Total number of samples received.
+        ring_drops (int): Count of items dropped by the ring buffer.
     """
 
     p50_ms: float
@@ -32,72 +32,72 @@ class Summary:
 
 
 def compute_metrics(chunks, nominal_rate: float, ring_drops: int = 0) -> Summary:
-    """Compute latency, jitter, effective sample rate, drift, and drop estimate.
+    """Compute latency, jitter, effective sample rate, drift, and drop estimate from LSL chunk data.
 
     Args:
-      chunks: Iterable of tuples ``(data, ts, recv)`` where:
-        * ``data``: ``np.ndarray`` of shape ``(n_samples, n_channels)`` (float32).
-        * ``ts``: Source timestamps in **seconds** (float64), length ``n_samples``.
-        * ``recv``: Single **receive time** in **seconds** (float) for the entire chunk.
-      nominal_rate: Claimed sample rate of the stream, in **Hz**.
-      ring_drops: Count of items overwritten or rejected by the ring buffer.
+        chunks (Iterable): Iterable of tuples (data, ts, recv) where:
+            data (np.ndarray): Array of shape (n_samples, n_channels) (float32).
+            ts (np.ndarray): Source timestamps in seconds (float64), length n_samples.
+            recv (float): Single receive time in seconds for the entire chunk.
+        nominal_rate (float): Claimed sample rate of the stream, in Hz.
+        ring_drops (int, optional): Count of items overwritten or rejected by the ring buffer. Defaults to 0.
 
     Returns:
-      Summary: p50/p95/p99 **latency (ms)**, jitter (ms), effective Hz,
-      drift (**ms/min**), drop_estimate (%), total samples, and ring_drops.
+        Summary: Container with p50/p95/p99 latency (ms), jitter (ms), effective Hz,
+            drift (ms/min), drop_estimate (%), total samples, and ring_drops.
 
     Raises:
-      ValueError: If the total number of samples is less than 8.
+        ValueError: If the total number of samples is less than 8.
 
     Notes:
-      * Latency uses one receive timestamp per chunk (approximation).
-      * Drift is the least-squares slope of ``(recv - src)`` over time, reported in ms/min.
-      * Drop estimate compares expected (nominal_rate × duration) vs. received samples.
+        Latency uses one receive timestamp per chunk (approximation).
+        Drift is the least-squares slope of (recv - src) over time, reported in ms/min.
+        Drop estimate compares expected (nominal_rate × duration) vs. received samples.
     """
     latencies = []
     recv_times = []
     src_times = []
-    n_total = 0
+    cumulative_sample_count = 0
 
-    for _data, ts, recv in chunks:
-        n = len(ts)
-        if n == 0:
+    for _data, source_timestamps, chunk_rcv_timestamp in chunks:
+        sample_count = len(source_timestamps)
+        if sample_count == 0:
             continue
-        n_total += n
-        latencies.extend((recv - ts) * 1000.0)  # ms
-        recv_times.extend([recv] * n)
-        src_times.extend(ts)
+        cumulative_sample_count += sample_count
+        latencies.extend((chunk_rcv_timestamp - source_timestamps) * 1000.0)  # ms
+        recv_times.extend([chunk_rcv_timestamp] * sample_count)
+        src_times.extend(source_timestamps)
 
-    if n_total < 8:
+    if cumulative_sample_count < 8:
         raise ValueError("Not enough samples")
 
-    lat = np.array(latencies, dtype=np.float64)
-    recv_arr = np.array(recv_times, dtype=np.float64)
-    src_arr = np.array(src_times, dtype=np.float64)
+    latency_array = np.array(latencies, dtype=np.float64)
+    recv_timestamp_array = np.array(recv_times, dtype=np.float64)
+    src_timestamps_array = np.array(src_times, dtype=np.float64)
 
-    p50, p95, p99 = np.percentile(lat, [50, 95, 99])
+    p50, p95, p99 = np.percentile(latency_array, [50, 95, 99])
     jitter = p95 - p50
 
-    dur = float(max(src_arr[-1] - src_arr[0], 1e-6))
-    eff_hz = n_total / dur
+    duration = float(max(src_timestamps_array[-1] - src_timestamps_array[0], 1e-6))
+    effective_sample_rate_hz = cumulative_sample_count / duration
 
-    offset_ms = (recv_arr - src_arr) * 1000.0
-    t_norm = src_arr - src_arr[0]
+    offset_ms = (recv_timestamp_array - src_timestamps_array) * 1000.0
+    t_norm = src_timestamps_array - src_timestamps_array[0]
     A = np.vstack([t_norm, np.ones_like(t_norm)]).T
     slope_ms_per_s, _ = np.linalg.lstsq(A, offset_ms, rcond=None)[0]
     drift_ms_per_min = float(slope_ms_per_s * 60.0)
 
-    expected = nominal_rate * dur
-    drops_pct = float(max(0.0, (expected - n_total) / max(expected, 1.0) * 100.0))
+    expected = nominal_rate * duration
+    drops_pct = float(max(0.0, (expected - cumulative_sample_count) / max(expected, 1.0) * 100.0))
 
     return Summary(
         float(p50),
         float(p95),
         float(p99),
         float(jitter),
-        float(eff_hz),
+        float(effective_sample_rate_hz),
         float(drift_ms_per_min),
         drops_pct,
-        int(n_total),
+        int(cumulative_sample_count),
         int(ring_drops),
     )
