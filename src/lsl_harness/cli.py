@@ -7,6 +7,7 @@ generating a human-readable HTML report from the collected data.
 """
 
 import csv
+import importlib.metadata
 import json
 import platform
 import sys
@@ -57,20 +58,20 @@ def measure(
 
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    worker = InletWorker(selector=(stream_key, stream_value), chunk=chunk_size)
-    worker.start()
+    inlet_worker = InletWorker(selector=(stream_key, stream_value), chunk=chunk_size)
+    inlet_worker.start()
 
     end_time = time.time() + duration_seconds
     collected_samples = []
 
     # Collect samples in small increments to avoid blocking and ensure responsiveness.
     while time.time() < end_time:
-        collected_samples.extend(worker.ring.drain_upto(16))
+        collected_samples.extend(inlet_worker.ring.drain_upto(16))
         time.sleep(0.01)
 
     # After the main collection, drain any remaining samples from the buffer.
-    collected_samples.extend(worker.ring.drain_upto(1_000_000))
-    worker.stop()
+    collected_samples.extend(inlet_worker.ring.drain_upto(1_000_000))
+    inlet_worker.stop()
 
     # Save raw per-sample latency and timestamps for plotting.
     latencies_ms = []
@@ -94,12 +95,12 @@ def measure(
             [[s, r] for s, r in zip(source_timestamps, receive_timestamps, strict=True)]
         )
 
-    summary = compute_metrics(collected_samples, nominal_sample_rate, ring_drops=worker.ring.drops)
+    summary = compute_metrics(collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops)
     metadata = {
         "environment": {
             "python": sys.version.split()[0],
             "platform": platform.platform(),
-            "pylsl_version": "1.16.x (pinned)",
+            "pylsl_version": importlib.metadata.version("pylsl"),
         },
         "parameters": {
             "selector": {"key": stream_key, "value": stream_value},
