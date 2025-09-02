@@ -83,6 +83,6 @@ class InletWorker:
         """Signal the background thread to stop and wait for it to exit."""
         self._stop.set()
         if self.thread:
-            self.thread.join() # Wait for the thread to finish
+            self.thread.join(timeout=5.0)  # Wait for the thread to finish, with timeout
         if self.inlet:
             self.inlet.close() # Good place for cleanup
