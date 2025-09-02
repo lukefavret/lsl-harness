@@ -1,4 +1,7 @@
-"""Functions for generating an HTML report from measurement results."""
+"""Functions for generating an HTML report from measurement results.
+
+This module provides utilities to read measurement results, generate plots, and render a human-readable HTML report using Jinja2 templates. It checks for required files and uses constants for filenames and plotting parameters.
+"""
 import json
 from pathlib import Path
 
@@ -17,9 +20,9 @@ MS_PER_SECOND = 1000.0
 def render_report(run_dir: Path) -> None:
     """Generates an HTML report with plots from saved run data.
 
-    Reads ``summary.json``, ``latency.csv``, and optionally ``times.csv`` from the specified run directory.
-    Generates a latency histogram plot, and if ``times.csv`` is available, a drift plot.
-    Renders an HTML report using a Jinja2 template.
+    This function checks for the existence of required files (``summary.json``, ``latency.csv``) in the specified run directory.
+    It loads measurement results, generates a latency histogram plot, and, if ``times.csv`` is available, a drift plot.
+    The report is rendered using a Jinja2 template and written to ``report.html``.
 
     Args:
         run_dir (Path): Path to the directory containing the run data.
@@ -27,8 +30,12 @@ def render_report(run_dir: Path) -> None:
     Returns:
         None
 
-    Side Effects:
-        Creates the following files in ``run_dir``:
+    Raises:
+        FileNotFoundError: If ``summary.json`` or ``latency.csv`` is missing in the run directory.
+
+    Notes:
+        - Uses constants for filenames and plotting parameters.
+        - Creates the following files in ``run_dir``:
             - ``latency_hist.png``: Histogram of latencies.
             - ``drift_plot.png``: Plot of clock offset over time (optional).
             - ``report.html``: The final HTML report.
