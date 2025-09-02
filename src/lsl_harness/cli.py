@@ -18,6 +18,9 @@ from rich import print
 
 from .metrics import compute_metrics
 
+LATENCY_CSV_HEADERS = ["latency_ms"]
+TIMES_CSV_HEADERS = ["src_time", "recv_time"]
+
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 
@@ -81,12 +84,12 @@ def measure(
 
     with open(output_directory / "latency.csv", "w", newline="") as latency_file:
         csv_writer = csv.writer(latency_file)
-        csv_writer.writerow(["latency_ms"])
+        csv_writer.writerow(LATENCY_CSV_HEADERS)
         csv_writer.writerows([[x] for x in latencies_ms])
 
     with open(output_directory / "times.csv", "w", newline="") as times_file:
         csv_writer = csv.writer(times_file)
-        csv_writer.writerow(["src_time", "recv_time"])
+        csv_writer.writerow(TIMES_CSV_HEADERS)
         csv_writer.writerows(
             [[s, r] for s, r in zip(source_timestamps, receive_timestamps, strict=True)]
         )
