@@ -40,6 +40,7 @@ class InletWorker:
         self.inlet = None
         self.thread = None
         self._stop = threading.Event()
+        self.JOIN_TIMEOUT = 5.0  # seconds
 
     def start(self):
         """Resolve the LSL stream and start the data acquisition thread.
@@ -83,6 +84,6 @@ class InletWorker:
         """Signal the background thread to stop and wait for it to exit."""
         self._stop.set()
         if self.thread:
-            self.thread.join(timeout=5.0)  # Wait for the thread to finish, with timeout
+            self.thread.join(self.JOIN_TIMEOUT)  # Wait for the thread to finish, with timeout
         if self.inlet:
-            self.inlet.close() # Good place for cleanup
+            self.inlet.close()  # Good place for cleanup
