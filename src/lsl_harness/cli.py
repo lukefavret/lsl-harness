@@ -1,3 +1,11 @@
+"""LSL stream measurement and reporting tool.
+
+This script provides command-line utilities to measure and report on the performance
+of an LSL (Lab Streaming Layer) stream. It includes commands for collecting data
+over a specified duration, computing key metrics like latency and jitter, and
+generating a human-readable HTML report from the collected data.
+"""
+
 import csv
 import json
 import platform
@@ -15,75 +23,93 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 @app.command()
 def measure(
-    selector_key: str = typer.Option("type", help="resolve key (e.g., name|type)"),
-    selector_val: str = typer.Option("EEG", help="resolve value"),
-    duration_s: float = 10.0,
-    chunk: int = 32,
-    nominal_rate: float = 1000.0,
-    out: Path = Path("results/run_001"),
+    stream_key: str = typer.Option("type", help="LSL resolve key (e.g., 'name' or 'type')"),
+    stream_value: str = typer.Option("EEG", help="LSL resolve value"),
+    duration_seconds: float = 10.0,
+    chunk_size: int = 32,
+    nominal_sample_rate: float = 1000.0,
+    output_directory: Path = Path("results/run_001"),
 ):
-    """Collect samples from an LSL stream and write JSON+CSV artifacts for reporting.
+    """Collect samples from an LSL stream and writes JSON+CSV artifacts for reporting.
+
+    This command-line utility connects to an LSL stream, collects a specified
+    duration of data, and saves key metrics and raw data to files for
+    subsequent analysis and reporting.
 
     Args:
-        selector_key (str): LSL resolve key (e.g., 'name', 'type').
-        selector_val (str): LSL resolve value.
-        duration_s (float): Duration in seconds to collect samples.
-        chunk (int): Max number of samples to pull per chunk.
-        nominal_rate (float): Nominal sample rate of the stream.
-        out (Path): Output directory for results (created if missing).
+        stream_key: The LSL resolve key (e.g., 'name', 'type').
+        stream_value: The LSL resolve value to match.
+        duration_seconds: The duration in seconds to collect samples.
+        chunk_size: The maximum number of samples to pull from the stream per chunk.
+        nominal_sample_rate: The nominal sample rate of the stream in Hz.
+        output_directory: The directory where result files will be saved.
+                          It will be created if it does not exist.
 
     Side Effects:
-        Writes latency.csv, times.csv, and summary.json to the output directory.
-        Prints completion message to the console.
+        - Writes `latency.csv`, `times.csv`, and `summary.json` to the output directory.
+        - Prints a completion message to the console.
+
     """
     from .measure import InletWorker
 
-    out.mkdir(parents=True, exist_ok=True)
-    w = InletWorker(selector=(selector_key, selector_val), chunk=chunk)
-    w.start()
-    t_end = time.time() + duration_s
-    collected = []
-    while time.time() < t_end:
-        collected.extend(w.ring.drain_upto(16))
+    output_directory.mkdir(parents=True, exist_ok=True)
+
+    worker = InletWorker(selector=(stream_key, stream_value), chunk=chunk_size)
+    worker.start()
+
+    end_time = time.time() + duration_seconds
+    collected_samples = []
+
+    # Collect samples in small increments to avoid blocking and ensure responsiveness.
+    while time.time() < end_time:
+        collected_samples.extend(worker.ring.drain_upto(16))
         time.sleep(0.01)
-    w.stop()
-    collected.extend(w.ring.drain_upto(1_000_000))
 
-    # Save raw per-sample latency and times for plots
-    lat_ms, src_times, recv_times = [], [], []
-    for _data, ts, recv in collected:
-        lat_ms.extend([(recv - t) * 1000.0 for t in ts])
-        src_times.extend(ts.tolist())
-        recv_times.extend([recv] * len(ts))
+    # After the main collection, drain any remaining samples from the buffer.
+    collected_samples.extend(worker.ring.drain_upto(1_000_000))
+    worker.stop()
 
-    with open(out / "latency.csv", "w", newline="") as f:
-        wr = csv.writer(f)
-        wr.writerow(["latency_ms"])
-        wr.writerows([[x] for x in lat_ms])
+    # Save raw per-sample latency and timestamps for plotting.
+    latencies_ms = []
+    source_timestamps = []
+    receive_timestamps = []
 
-    with open(out / "times.csv", "w", newline="") as f:
-        wr = csv.writer(f)
-        wr.writerow(["src_time", "recv_time"])
-        wr.writerows([[s, r] for s, r in zip(src_times, recv_times, strict=True)])
+    for _data, ts, recv in collected_samples:
+        latencies_ms.extend([(recv - t) * 1000.0 for t in ts])
+        source_timestamps.extend(ts.tolist())
+        receive_timestamps.extend([recv] * len(ts))
 
-    summary = compute_metrics(collected, nominal_rate, ring_drops=w.ring.drops)
-    meta = {
-        "env": {
+    with open(output_directory / "latency.csv", "w", newline="") as latency_file:
+        csv_writer = csv.writer(latency_file)
+        csv_writer.writerow(["latency_ms"])
+        csv_writer.writerows([[x] for x in latencies_ms])
+
+    with open(output_directory / "times.csv", "w", newline="") as times_file:
+        csv_writer = csv.writer(times_file)
+        csv_writer.writerow(["src_time", "recv_time"])
+        csv_writer.writerows(
+            [[s, r] for s, r in zip(source_timestamps, receive_timestamps, strict=True)]
+        )
+
+    summary = compute_metrics(collected_samples, nominal_sample_rate, ring_drops=worker.ring.drops)
+    metadata = {
+        "environment": {
             "python": sys.version.split()[0],
             "platform": platform.platform(),
             "pylsl_version": "1.16.x (pinned)",
         },
-        "params": {
-            "selector": {"key": selector_key, "val": selector_val},
-            "duration_s": duration_s,
-            "chunk": chunk,
-            "nominal_rate": nominal_rate,
+        "parameters": {
+            "selector": {"key": stream_key, "value": stream_value},
+            "duration_seconds": duration_seconds,
+            "chunk_size": chunk_size,
+            "nominal_sample_rate": nominal_sample_rate,
         },
     }
-    with open(out / "summary.json", "w") as f:
-        json.dump({**summary.__dict__, **meta}, f, indent=2)
 
-    print("[bold green]Done[/] ->", out)
+    with open(output_directory / "summary.json", "w") as summary_file:
+        json.dump({**summary.__dict__, **metadata}, summary_file, indent=2)
+
+    print("[bold green]Done[/] ->", output_directory)
 
 
 @app.command()
@@ -91,18 +117,16 @@ def report(run: Path = None):
     """Render an HTML report from measurement artifacts in a results directory.
 
     Args:
-        run (Path, optional): Path to the results directory containing summary.json.
-            If not provided, prompts for a required argument.
+        run (Path): Path to the results directory containing summary.json.
 
     Side Effects:
         Renders and writes an HTML report to the results directory.
     """
-    from .report import render_report
-
     if run is None:
         run = typer.Argument(..., help="results directory containing summary.json")
-    render_report(run)
+    from .report import render_report
 
+    render_report(run)
 
 if __name__ == "__main__":
     app()
