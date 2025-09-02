@@ -11,6 +11,8 @@ LATENCY_CSV_FILE = "latency.csv"
 TIMES_CSV_FILE = "times.csv"
 
 LATENCY_HIST_BINS = 50
+PLOT_DPI = 120
+MS_PER_SECOND = 1000.0
 
 def render_report(run_dir: Path) -> None:
     """Generates an HTML report with plots from saved run data.
@@ -42,23 +44,23 @@ def render_report(run_dir: Path) -> None:
     plt.xlabel("Latency (ms)")
     plt.ylabel("Count")
     plt.title("Latency Histogram")
-    plt.savefig(run_dir / "latency_hist.png", dpi=120, bbox_inches="tight")
+    plt.savefig(run_dir / "latency_hist.png", dpi=PLOT_DPI, bbox_inches="tight")
     plt.close()
 
     # --- Generate drift plot if times.csv exists ---
     drift_plot = False
     times_path = run_dir / TIMES_CSV_FILE
     if times_path.exists():
-        arr = np.loadtxt(times_path, delimiter=",", skiprows=1)
+        time_data_array = np.loadtxt(times_path, delimiter=",", skiprows=1)
         # If only one row is present, np.loadtxt returns a 1D array; reshape to 2D for consistency
-        if arr.ndim == 1:
-            arr = arr[None, :]
-        src = arr[:, 0]
-        recv = arr[:, 1]
-        offset_ms = (recv - src) * 1000.0
-        t_norm = src - src[0]
+        if time_data_array.ndim == 1:
+            time_data_array = time_data_array[None, :]
+        source_timestamps = time_data_array[:, 0]
+        received_timestamps = time_data_array[:, 1]
+        offset_ms = (received_timestamps - source_timestamps) * MS_PER_SECOND
+        time_diff_from_start = source_timestamps - source_timestamps[0]
         plt.figure()
-        plt.plot(t_norm, offset_ms)
+        plt.plot(time_diff_from_start, offset_ms)
         plt.xlabel("Time (s)")
         plt.ylabel("Offset (ms)")
         plt.title("Offset vs Time (Drift)")
