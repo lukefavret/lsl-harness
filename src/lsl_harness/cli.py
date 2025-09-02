@@ -22,7 +22,7 @@ from .metrics import compute_metrics
 LATENCY_CSV_FILE = "latency.csv"
 LATENCY_CSV_HEADERS = ["latency_ms"]
 
-TIME_CSV_FILE = "times.csv"
+TIMES_CSV_FILE = "times.csv"
 TIMES_CSV_HEADERS = ["src_time", "recv_time"]
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -78,7 +78,7 @@ def measure(
 
     # Use 'with' to manage both file handles safely
     with open(output_directory / LATENCY_CSV_FILE, "w", newline="") as latency_file, \
-         open(output_directory / TIME_CSV_FILE, "w", newline="") as times_file:
+         open(output_directory / TIMES_CSV_FILE, "w", newline="") as times_file:
 
         # Create CSV writers for both files
         latency_writer = csv.writer(latency_file)
