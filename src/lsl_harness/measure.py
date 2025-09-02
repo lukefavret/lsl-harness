@@ -38,6 +38,7 @@ class InletWorker:
         self.timeout = timeout
         self.ring = Ring(ring_capacity, drop_oldest=True)
         self.inlet = None
+        self.thread = None
         self._stop = threading.Event()
 
     def start(self):
@@ -61,8 +62,8 @@ class InletWorker:
         if not streams:
             raise RuntimeError(f"No LSL stream matching {key}=={val}")
         self.inlet = StreamInlet(streams[0], max_buflen=5, max_chunklen=0, recover=True)
-        t = threading.Thread(target=self._run, daemon=True)
-        t.start()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
 
     def _run(self):
         """Run the main loop for the background data acquisition thread.
@@ -78,6 +79,10 @@ class InletWorker:
                     (np.array(data, dtype=np.float32), np.array(ts, dtype=np.float64), recv)
                 )
 
-    def stop_now(self):
-        """Signal the background thread to stop."""
+    def stop(self):
+        """Signal the background thread to stop and wait for it to exit."""
         self._stop.set()
+        if self.thread:
+            self.thread.join() # Wait for the thread to finish
+        if self.inlet:
+            self.inlet.close() # Good place for cleanup
