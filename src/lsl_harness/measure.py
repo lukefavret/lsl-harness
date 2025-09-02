@@ -26,7 +26,7 @@ class InletWorker:
         inlet (StreamInlet): The pylsl.StreamInlet instance.
         thread (threading.Thread): The background thread for data acquisition.
         _stop (threading.Event): Event to signal the worker thread to stop.
-        JOIN_TIMEOUT (float): Timeout in seconds for thread join.
+        _JOIN_TIMEOUT (float): Timeout in seconds for thread join.
     """
 
     def __init__(self, selector=("type", "EEG"), chunk=32, timeout=0.1, ring_capacity=256):
@@ -108,9 +108,12 @@ class InletWorker:
             self._thread.join(self._JOIN_TIMEOUT)
             if self._thread.is_alive():
                 warnings.warn(
-                    f"InletWorker thread did not stop gracefully within the timeout ({self._JOIN_TIMEOUT} seconds). "
-                    "Python does not support forceful termination of threads; "
-                    "resources may not be fully cleaned up. Restart the process if necessary.",
+                    (
+                        f"InletWorker thread did not stop gracefully within the timeout "
+                        f"({self._JOIN_TIMEOUT} seconds). "
+                        "Python does not support forceful termination of threads; "
+                        "resources may not be fully cleaned up. Restart the process if necessary."
+                    ),
                     stacklevel=2,
                 )
             # Clear thread reference after it has been handled.
