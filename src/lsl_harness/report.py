@@ -6,8 +6,13 @@ import jinja2
 import matplotlib.pyplot as plt
 import numpy as np
 
+LATENCY_CSV_FILE = "latency.csv"
 
-def render_report(run_dir: Path):
+TIMES_CSV_FILE = "times.csv"
+
+LATENCY_HIST_BINS = 50
+
+def render_report(run_dir: Path) -> None:
     """Generate an HTML report with plots from saved run data.
 
     This function reads ``summary.json``, ``latency.csv``, and optionally
@@ -25,12 +30,12 @@ def render_report(run_dir: Path):
 
     """
     run_dir = Path(run_dir)
-    s = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    summary_data = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
 
     # Latency histogram
-    lat = np.loadtxt(run_dir / "latency.csv", delimiter=",", skiprows=1, ndmin=1)
+    latency_data = np.loadtxt(run_dir / LATENCY_CSV_FILE, delimiter=",", skiprows=1, ndmin=1)
     plt.figure()
-    plt.hist(lat, bins=50)
+    plt.hist(latency_data, LATENCY_HIST_BINS)
     plt.xlabel("Latency (ms)")
     plt.ylabel("Count")
     plt.title("Latency Histogram")
@@ -39,7 +44,7 @@ def render_report(run_dir: Path):
 
     # Optional drift plot if times.csv exists
     drift_plot = False
-    times_path = run_dir / "times.csv"
+    times_path = run_dir / TIMES_CSV_FILE
     if times_path.exists():
         arr = np.loadtxt(times_path, delimiter=",", skiprows=1)
         if arr.ndim == 1:
@@ -61,5 +66,5 @@ def render_report(run_dir: Path):
         loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates"), autoescape=False
     )
     tmpl = env.get_template("report.html.j2")
-    html = tmpl.render(drift_plot=drift_plot, **s)
+    html = tmpl.render(drift_plot=drift_plot, **summary_data)
     (run_dir / "report.html").write_text(html, encoding="utf-8")
