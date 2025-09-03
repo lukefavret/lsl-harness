@@ -71,6 +71,7 @@ def run_synthetic_outlet(
     jitter_ms: float = 0.0,
     burst_loss_percent: float = 0.0,
     drift_ms_per_minute: float = 0.0,
+    seed: int | None = None,
 ):
     """Runs the main loop for the synthetic LSL outlet.
 
@@ -88,6 +89,7 @@ def run_synthetic_outlet(
         drift_ms_per_minute: Simulated clock drift (ms/minute).
     """
     outlet = create_lsl_outlet(name, stream_type, num_channels, sample_rate)
+    rng = np.random.default_rng(seed)
 
     # --- Initialize state variables ---
     delta_time = 1.0 / sample_rate
@@ -119,8 +121,7 @@ def run_synthetic_outlet(
 
         # Add jitter
         if jitter_ms > 0:
-            sleep_time += np.random.uniform(0, jitter_ms / 1000.0)
-
+            sleep_time += rng.uniform(-jitter_ms / 1000.0, jitter_ms / 1000.0)
         time.sleep(sleep_time)
 
         # Add clock drift
@@ -135,7 +136,8 @@ def run_synthetic_outlet(
 def main():
     """The main entry point for running the outlet from the command line."""
     try:
-        run_synthetic_outlet()
+        # Set a fixed seed for reproducibility in testing scenarios
+        run_synthetic_outlet(seed=42)
     except KeyboardInterrupt:
         print("\nOutlet stopped by user.")
 
