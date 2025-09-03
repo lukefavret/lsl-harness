@@ -41,6 +41,7 @@ vendor/liblsl/*
 !.vscode/launch.json
 !.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/tasks.json
 
 # --- OS/editor junk ---
 .DS_Store
