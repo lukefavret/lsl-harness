@@ -6,7 +6,7 @@
   <li>p95: {{ p95_ms | round(2) }} ms</li>
   <li>p99: {{ p99_ms | round(2) }} ms</li>
   <li>Jitter (p95-p50): {{ jitter_ms | round(2) }} ms</li>
-  <li>Effective Hz: {{ eff_hz | round(2) }}</li>
+  <li>Effective Hz: {{ effective_sample_rate_hz | round(2) }}</li>
   <li>Drift: {{ drift_ms_per_min | round(2) }} ms/min</li>
   <li>Drops (est): {{ drop_estimate | round(2) }} %</li>
   <li>Ring overwrites: {{ ring_drops }}</li>
