@@ -87,6 +87,7 @@ def run_synthetic_outlet(
         jitter_ms: Random jitter added to sleep time between chunks (ms).
         burst_loss_percent: Percentage (0-100) of chunks to drop.
         drift_ms_per_minute: Simulated clock drift (ms/minute).
+        seed: Optional seed for the random number generator to ensure reproducibility.
     """
     outlet = create_lsl_outlet(name, stream_type, num_channels, sample_rate)
     rng = np.random.default_rng(seed)

@@ -1,6 +1,7 @@
 """Manages LSL stream data acquisition in a background thread.
 
-This module provides the InletWorker class for acquiring LSL stream data in a background thread and storing it in a ring buffer.
+This module provides the InletWorker class for acquiring LSL stream data in a background thread and 
+storing it in a ring buffer.
 """
 
 import threading
