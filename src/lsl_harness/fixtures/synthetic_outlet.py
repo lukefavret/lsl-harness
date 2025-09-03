@@ -88,6 +88,7 @@ def run_synthetic_outlet(
         drift_ms_per_minute: Simulated clock drift (ms/minute).
     """
     outlet = create_lsl_outlet(name, stream_type, num_channels, sample_rate)
+    rng = np.random.default_rng()
 
     # --- Initialize state variables ---
     delta_time = 1.0 / sample_rate
@@ -119,8 +120,7 @@ def run_synthetic_outlet(
 
         # Add jitter
         if jitter_ms > 0:
-            sleep_time += np.random.uniform(0, jitter_ms / 1000.0)
-
+            sleep_time += rng.uniform(-jitter_ms / 1000.0, jitter_ms / 1000.0)
         time.sleep(sleep_time)
 
         # Add clock drift
