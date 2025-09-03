@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Reset venv (delete .venv)",
+      "type": "shell",
+      "command": "rm -rf .venv",
+      "problemMatcher": []
+    },
+    {
+      "label": "Install deps (runtime)",
+      "type": "shell",
+      "command": "uv venv --python 3.11 && uv sync",
+      "problemMatcher": []
+    },
+    {
+      "label": "Install deps (dev)",
+      "type": "shell",
+      "command": "uv venv --python 3.11 && uv sync --group dev",
+      "problemMatcher": []
+    },
+    {
+      "label": "CLI help",
+      "type": "shell",
+      "command": "uv run lsl-harness --help",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "uv run pytest -q",
+      "problemMatcher": "$pytest-stderr"
+    }
+  ]
+}
