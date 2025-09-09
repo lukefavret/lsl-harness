@@ -33,7 +33,7 @@ homepage = "https://github.com/lukefavret/lsl-harness"
 repository = "https://github.com/lukefavret/lsl-harness"
 issues = "https://github.com/lukefavret/lsl-harness/issues"
 
-#Optional dependencies for UV. Useable via uv sync --group <group>
+#Optional dependencies for UV. Usable via uv sync --group <group>
 [dependency-groups]
 dev = [
     "pytest==8.*",
