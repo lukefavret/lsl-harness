@@ -33,12 +33,27 @@ homepage = "https://github.com/lukefavret/lsl-harness"
 repository = "https://github.com/lukefavret/lsl-harness"
 issues = "https://github.com/lukefavret/lsl-harness/issues"
 
+#Optional dependencies for UV. Usable via uv sync --group <group>
+[dependency-groups]
+dev = [
+    "pytest==8.*",
+    "pytest-cov==5.*",
+    "mypy==1.11.*",
+    "ruff==0.6.*"
+]
+
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "griffe"
+]
+
 # Tell Hatchling where your package lives when using the "src/" layout
 [tool.hatch.build.targets.wheel]
 packages = ["src/lsl_harness"]
 
 # Grouped (non-runtime) dependencies for development, docs, etc.
-[dependency-groups]
+[project.optional-dependencies]
 dev = ["pytest==8.*", "pytest-cov==5.*", "mypy==1.11.*", "ruff==0.6.*"]
 docs = ["mkdocs-material", "mkdocstrings[python]", "griffe"]
 
