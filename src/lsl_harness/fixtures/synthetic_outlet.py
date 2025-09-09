@@ -40,7 +40,7 @@ def generate_sine_chunk(
     frequency: float,
     delta_time: float,
 ) -> tuple[np.ndarray, float]:
-    """Generates a chunk of sine wave data.
+    """Generates a chunk of sine wave data with robust phase management.
 
     Args:
         current_phase: The starting phase for the sine wave.
@@ -53,21 +53,28 @@ def generate_sine_chunk(
         A tuple containing the generated data chunk (numpy array) and the
         updated phase for the next chunk.
     """
-    # Create an array of sample indices (1 to chunk_size) to vectorize the calculation.
-    indices = np.arange(chunk_size) + 1.0
+    # Create an array of sample indices for the chunk.
+    indices = np.arange(chunk_size, dtype=np.float32)
 
     # Calculate the phase for each sample in the chunk.
     phase_increment = 2 * np.pi * frequency * delta_time
     phases = current_phase + indices * phase_increment
-    new_phase = phases[-1]
 
-    # Generate the sine wave values and cast to float32.
-    values = np.sin(phases).astype(np.float32)
+    # Generate the sine wave values. (np.sin returns float)
+    values = np.sin(phases)
+
+    # Calculate the phase for the start of the next chunk.
+    # This prevents the phase from growing indefinitely.
+    next_phase = current_phase + chunk_size * phase_increment
+    wrapped_next_phase = next_phase % (2 * np.pi)
 
     # Create the full chunk buffer by repeating the values across all channels.
-    chunk_buffer = np.tile(values[:, np.newaxis], (1, num_channels))
+    if num_channels > 1:
+        chunk_buffer = np.tile(values[:, np.newaxis], (1, num_channels))
+    else:
+        chunk_buffer = values
 
-    return chunk_buffer, new_phase
+    return chunk_buffer, wrapped_next_phase
 
 
 def run_synthetic_outlet(
@@ -121,8 +128,7 @@ def run_synthetic_outlet(
 
         # 2. Simulate burst loss and push the chunk
         if np.random.rand() >= burst_loss_percent / 100:
-            # outlet.push_chunk requires a list of lists, not a numpy array.
-            outlet.push_chunk(chunk.tolist())
+            outlet.push_chunk(chunk)
 
         # 3. Calculate sleep duration with impairments
         chunk_duration = chunk_size * delta_time
