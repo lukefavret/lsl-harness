@@ -53,13 +53,21 @@ def generate_sine_chunk(
         A tuple containing the generated data chunk (numpy array) and the
         updated phase for the next chunk.
     """
-    chunk_buffer = np.zeros((chunk_size, num_channels), dtype=np.float32)
-    phase = current_phase
-    for i in range(chunk_size):
-        phase += 2 * math.pi * frequency * delta_time
-        value = math.sin(phase)
-        chunk_buffer[i, :] = value
-    return chunk_buffer, phase
+    # Create an array of sample indices (1 to chunk_size) to vectorize the calculation.
+    indices = np.arange(chunk_size) + 1.0
+
+    # Calculate the phase for each sample in the chunk.
+    phase_increment = 2 * np.pi * frequency * delta_time
+    phases = current_phase + indices * phase_increment
+    new_phase = phases[-1]
+
+    # Generate the sine wave values and cast to float32.
+    values = np.sin(phases).astype(np.float32)
+
+    # Create the full chunk buffer by repeating the values across all channels.
+    chunk_buffer = np.tile(values[:, np.newaxis], (1, num_channels))
+
+    return chunk_buffer, new_phase
 
 
 def run_synthetic_outlet(
