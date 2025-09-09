@@ -127,7 +127,7 @@ def run_synthetic_outlet(
         )
 
         # 2. Simulate burst loss and push the chunk
-        if np.random.rand() >= burst_loss_percent / 100:
+        if rng.random.rand() >= burst_loss_percent / 100:
             outlet.push_chunk(chunk)
 
         # 3. Calculate sleep duration with impairments
