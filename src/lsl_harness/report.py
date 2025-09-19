@@ -2,6 +2,7 @@
 
 This module provides utilities to read measurement results, generate plots, and render a human-readable HTML report using Jinja2 templates. It checks for required files and uses constants for filenames and plotting parameters.
 """
+
 import json
 from pathlib import Path
 
@@ -16,6 +17,7 @@ SUMMARY_JSON_FILE = "summary.json"
 LATENCY_HIST_BINS = 50
 PLOT_DPI = 120
 MS_PER_SECOND = 1000.0
+
 
 def render_report(run_dir: Path) -> None:
     """Generates an HTML report with plots from saved run data.
@@ -83,7 +85,8 @@ def render_report(run_dir: Path) -> None:
 
     # --- Render HTML report using Jinja2 template ---
     env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates"), autoescape=False
+        loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates"),
+        autoescape=False,
     )
     tmpl = env.get_template("report.html.j2")
     html = tmpl.render(drift_plot=drift_plot, **summary_data)

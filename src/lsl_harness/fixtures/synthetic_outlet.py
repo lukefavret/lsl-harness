@@ -3,11 +3,11 @@
 This script runs a standalone LSL outlet that generates a synthetic signal with
 configurable parameters, including jitter, burst loss, and clock drift.
 """
-import math
+
 import time
 
 import numpy as np
-from pylsl import StreamInfo, StreamOutlet, local_clock
+from pylsl import StreamInfo, StreamOutlet, cf_float32, local_clock
 
 
 def create_lsl_outlet(
@@ -25,11 +25,13 @@ def create_lsl_outlet(
         A configured StreamOutlet instance.
     """
     info = StreamInfo(
-        name, stream_type, num_channels, sample_rate, "float32", f"sim-{name}"
+        name, stream_type, num_channels, sample_rate, cf_float32, f"sim-{name}"
     )
     # Buffer up to 10 seconds of data
     outlet = StreamOutlet(info, max_buffered=int(sample_rate * 10))
-    print(f"Created LSL outlet '{name}' with {num_channels} channels at {sample_rate} Hz.")
+    print(
+        f"Created LSL outlet '{name}' with {num_channels} channels at {sample_rate} Hz."
+    )
     return outlet
 
 
@@ -136,7 +138,8 @@ def run_synthetic_outlet(
             if remaining_nsec > 2_000_000:  # > 2 ms
                 time.sleep((remaining_nsec - 1_000_000) / 1e9)
             else:
-                # Busy-wait for the last ~2 ms. High CPU, but required when on 'untuned' OSes.
+                # Busy-wait for the last ~2 ms. 
+                # High CPU, but required when on 'untuned' OSes.
                 while time.perf_counter_ns() < target_nsec:
                     pass
                 return
@@ -155,7 +158,7 @@ def run_synthetic_outlet(
         chunk = chunk.astype(np.float32, copy=False)
     ts_chunk = current_src_time + sample_indices * dt_src
     # Do not drop the first chunk to ensure immediate startup
-    outlet.push_chunk(chunk, timestamps=ts_chunk)
+    outlet.push_chunk(chunk, timestamp=ts_chunk)
 
     # Prepare schedule for the next send
     chunk_duration = chunk_size * delta_time
@@ -188,7 +191,8 @@ def run_synthetic_outlet(
         # At the precise tick, simulate burst loss and push
         drop_prob = burst_loss_percent * 0.01
         if rng.random() >= drop_prob:
-            outlet.push_chunk(chunk, timestamps=ts_chunk)
+            outlet.push_chunk(chunk, timestamp=ts_chunk)
+
 
 def main():
     """The main entry point for running the outlet from the command line."""
@@ -197,6 +201,7 @@ def main():
         run_synthetic_outlet(seed=42)
     except KeyboardInterrupt:
         print("\nOutlet stopped by user.")
+
 
 if __name__ == "__main__":
     main()

@@ -19,6 +19,7 @@ def test_metrics_basic():
     # Max latency should be close to p99 for this synthetic data
     assert abs(s.max_latency_ms - s.p99_ms) < 1.0
 
+
 def test_max_latency_outlier():
     # All latencies are 5ms except one outlier at 100ms
     n = 1000

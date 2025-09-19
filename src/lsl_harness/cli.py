@@ -30,7 +30,9 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 @app.command()
 def measure(
-    stream_key: str = typer.Option("type", help="LSL resolve key (e.g., 'name' or 'type')"),
+    stream_key: str = typer.Option(
+        "type", help="LSL resolve key (e.g., 'name' or 'type')"
+    ),
     stream_value: str = typer.Option("EEG", help="LSL resolve value"),
     duration_seconds: float = 10.0,
     chunk_size: int = 32,
@@ -77,9 +79,10 @@ def measure(
     inlet_worker.stop()
 
     # Use 'with' to manage both file handles safely
-    with open(output_directory / LATENCY_CSV_FILE, "w", newline="") as latency_file, \
-         open(output_directory / TIMES_CSV_FILE, "w", newline="") as times_file:
-
+    with (
+        open(output_directory / LATENCY_CSV_FILE, "w", newline="") as latency_file,
+        open(output_directory / TIMES_CSV_FILE, "w", newline="") as times_file,
+    ):
         # Create CSV writers for both files
         latency_writer = csv.writer(latency_file)
         times_writer = csv.writer(times_file)
@@ -94,12 +97,14 @@ def measure(
             for src_timestamp in src_timestamp_list:
                 # Calculate latency for the single sample
                 latency_ms = (receive_timestamp - src_timestamp) * 1000.0
-                
+
                 # Write the individual rows directly to the files
                 latency_writer.writerow([latency_ms])
                 times_writer.writerow([src_timestamp, receive_timestamp])
 
-    summary = compute_metrics(collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops)
+    summary = compute_metrics(
+        collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops
+    )
     metadata = {
         "environment": {
             "python": sys.version.split()[0],
@@ -135,6 +140,7 @@ def report(run: Path = None):
     from .report import render_report
 
     render_report(run)
+
 
 if __name__ == "__main__":
     app()

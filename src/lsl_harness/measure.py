@@ -1,6 +1,6 @@
 """Manages LSL stream data acquisition in a background thread.
 
-This module provides the InletWorker class for acquiring LSL stream data in a background thread and 
+This module provides the InletWorker class for acquiring LSL stream data in a background thread and
 storing it in a ring buffer.
 """
 
@@ -30,7 +30,9 @@ class InletWorker:
         _JOIN_TIMEOUT (float): Timeout in seconds for thread join.
     """
 
-    def __init__(self, selector=("type", "EEG"), chunk=32, timeout=0.1, ring_capacity=256):
+    def __init__(
+        self, selector=("type", "EEG"), chunk=32, timeout=0.1, ring_capacity=256
+    ):
         """Initialize the InletWorker.
 
         Args:
@@ -77,11 +79,19 @@ class InletWorker:
         the ring buffer until the ``_stop`` event is set.
         """
         while not self._stop.is_set():
-            data, ts = self.inlet.pull_chunk(max_samples=self.chunk, timeout=self.timeout)
+            data, ts = self.inlet.pull_chunk(
+                max_samples=self.chunk, timeout=self.timeout
+            )
             if ts:
-                recv = local_clock()  # one receive timestamp per chunk (documented approx)
+                recv = (
+                    local_clock()
+                )  # one receive timestamp per chunk (documented approx)
                 self.ring.push(
-                    (np.array(data, dtype=np.float32), np.array(ts, dtype=np.float64), recv)
+                    (
+                        np.array(data, dtype=np.float32),
+                        np.array(ts, dtype=np.float64),
+                        recv,
+                    )
                 )
 
     def stop(self):
@@ -99,7 +109,9 @@ class InletWorker:
             try:
                 self.inlet.close()
             except Exception as e:
-                warnings.warn(f"Exception occurred while closing inlet: {e}", stacklevel=2)
+                warnings.warn(
+                    f"Exception occurred while closing inlet: {e}", stacklevel=2
+                )
             finally:
                 # Ensure the reference is always cleared.
                 self.inlet = None
