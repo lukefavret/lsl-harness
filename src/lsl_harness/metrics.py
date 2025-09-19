@@ -19,6 +19,11 @@ class Summary:
         drop_estimate (float): Estimated percentage of dropped samples.
         total_sample_count (int): Total number of samples received.
         ring_drops (int): Count of items dropped by the ring buffer.
+        isi_mean_ms (float): Mean inter-sample interval (ms).
+        isi_std_ms (float): Standard deviation of ISI (ms).
+        isi_p50_ms (float): Median ISI (ms).
+        isi_p95_ms (float): 95th percentile ISI (ms).
+        isi_p99_ms (float): 99th percentile ISI (ms).
     """
 
     p50_ms: float
@@ -31,6 +36,11 @@ class Summary:
     drop_estimate: float  # %
     total_sample_count: int
     ring_drops: int
+    isi_mean_ms: float
+    isi_std_ms: float
+    isi_p50_ms: float
+    isi_p95_ms: float
+    isi_p99_ms: float
 
 
 def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nominal_rate: float, ring_drops: int = 0) -> Summary:
@@ -110,6 +120,13 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
     expected_sample_count = nominal_rate * duration
     drops_percentage = float(max(0.0, (expected_sample_count - total_sample_count) / max(expected_sample_count, 1.0) * 100.0))
 
+    # --- Compute ISI (inter-sample interval) statistics ---
+    isi = np.diff(src_timestamps_array)
+    isi_ms = isi * 1000.0
+    isi_mean = float(np.mean(isi_ms))
+    isi_std = float(np.std(isi_ms))
+    isi_p50, isi_p95, isi_p99 = np.percentile(isi_ms, [50, 95, 99])
+
     # --- Package results in Summary dataclass ---
     return Summary(
         float(p50),
@@ -122,4 +139,9 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         drops_percentage,
         int(total_sample_count),
         int(ring_drops),
+        isi_mean,
+        isi_std,
+        float(isi_p50),
+        float(isi_p95),
+        float(isi_p99),
     )
