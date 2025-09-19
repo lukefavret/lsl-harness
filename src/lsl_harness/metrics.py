@@ -27,6 +27,8 @@ class Summary:
         isi_p95_ms (float): 95th percentile ISI in milliseconds.
         isi_p99_ms (float): 99th percentile ISI in milliseconds.
         sequence_discontinuities (int): Number of chunks where the first timestamp is less than the previous chunk's last timestamp (chronological order violation).
+        rr_mean_ms (float): Mean interval between chunk receive times (ms, receive interval stability).
+        rr_std_ms (float): Standard deviation of chunk receive intervals (ms, receive interval stability).
     """
 
     p50_ms: float
@@ -37,7 +39,7 @@ class Summary:
     jitter_std: float
     effective_sample_rate_hz: float
     drift_ms_per_min: float
-    drop_estimate: float  # %
+    drops_percentage: float  # %
     total_sample_count: int
     ring_drops: int
     isi_mean_ms: float
@@ -46,10 +48,12 @@ class Summary:
     isi_p95_ms: float
     isi_p99_ms: float
     sequence_discontinuities: int
+    rr_mean_ms: float
+    rr_std_ms: float
 
 
 def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nominal_rate: float, ring_drops: int = 0) -> Summary:
-    """Compute latency, jitter, effective sample rate, drift, drop estimate, and ISI metrics from LSL chunk data.
+    """Compute latency, jitter, effective sample rate, drift, drop estimate, ISI, receive interval, and sequence discontinuity metrics from LSL chunk data.
 
     Args:
         chunks (Iterable): Iterable of tuples (data, ts, recv) where:
@@ -70,6 +74,8 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
             - total sample count
             - ring_drops
             - ISI mean, std, and percentiles (ms)
+            - sequence_discontinuities (count of out-of-order chunks)
+            - rr_mean_ms, rr_std_ms (receive interval stability, ms)
 
     Raises:
         ValueError: If the total number of samples is less than 8.
@@ -79,16 +85,20 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         - Drift is the least-squares slope of (recv - src) over time, reported in ms/min.
         - Drop estimate compares expected (nominal_rate * duration) vs. received samples.
         - ISI (inter-sample interval) metrics are computed from source timestamps and reflect the timing regularity of the data source itself.
+        - Receive interval (R-R) metrics are computed from chunk receive times and reflect consumer-side regularity.
+        - sequence_discontinuities counts chunks that violate chronological order (first ts < previous last ts).
     """
     # --- Aggregate all samples and timestamps from chunks ---
     latencies = []
     recv_times = []
     src_times = []
+    chunk_receive_times = []
     total_sample_count = 0
     sequence_discontinuities = 0
     prev_last_ts = None
 
     for _data, source_timestamps, chunk_rcv_timestamp in chunks:
+        chunk_receive_times.append(chunk_rcv_timestamp)
         sample_count = len(source_timestamps)
         if sample_count == 0:
             continue
@@ -145,27 +155,39 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
     # --- Compute ISI (inter-sample interval) statistics ---
     isi = np.diff(src_timestamps_array)
     isi_ms = isi * 1000.0
-    isi_mean = float(np.mean(isi_ms))
-    isi_std = float(np.std(isi_ms))
+    isi_mean_ms = float(np.mean(isi_ms))
+    isi_std_ms = float(np.std(isi_ms))
     isi_p50, isi_p95, isi_p99 = np.percentile(isi_ms, [50, 95, 99])
+
+    # --- Compute receive interval (R-R) statistics ---
+    if len(chunk_receive_times) > 1:
+        rr_intervals = np.diff(chunk_receive_times)
+        rr_intervals_ms = rr_intervals * 1000.0
+        rr_mean_ms = float(np.mean(rr_intervals_ms))
+        rr_std_ms = float(np.std(rr_intervals_ms))
+    else:
+        rr_mean_ms = 0.0
+        rr_std_ms = 0.0
 
     # --- Package results in Summary dataclass ---
     return Summary(
-        float(p50),
-        float(p95),
-        float(p99),
-        max_latency_ms,
-        float(jitter_ms),
-        float(jitter_std),
-        float(effective_sample_rate_hz),
-        float(drift_ms_per_min),
-        drops_percentage,
-        int(total_sample_count),
-        int(ring_drops),
-        isi_mean,
-        isi_std,
-        float(isi_p50),
-        float(isi_p95),
-        float(isi_p99),
-        int(sequence_discontinuities),
+        p50_ms=float(p50),
+        p95_ms=float(p95),
+        p99_ms=float(p99),
+        max_latency_ms=max_latency_ms,
+        jitter_ms=float(jitter_ms),
+        jitter_std=float(jitter_std),
+        effective_sample_rate_hz=float(effective_sample_rate_hz),
+        drift_ms_per_min=float(drift_ms_per_min),
+        drops_percentage=drops_percentage,
+        total_sample_count=int(total_sample_count),
+        ring_drops=int(ring_drops),
+        isi_mean_ms=isi_mean_ms,
+        isi_std_ms=isi_std_ms,
+        isi_p50_ms=float(isi_p50),
+        isi_p95_ms=float(isi_p95),
+        isi_p99_ms=float(isi_p99),
+        sequence_discontinuities=int(sequence_discontinuities),
+        rr_mean_ms=rr_mean_ms,
+        rr_std_ms=rr_std_ms,
     )
