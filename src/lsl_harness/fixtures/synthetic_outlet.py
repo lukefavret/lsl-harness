@@ -7,7 +7,7 @@ import math
 import time
 
 import numpy as np
-from pylsl import StreamInfo, StreamOutlet
+from pylsl import StreamInfo, StreamOutlet, local_clock
 
 
 def create_lsl_outlet(
@@ -111,13 +111,60 @@ def run_synthetic_outlet(
     delta_time = 1.0 / sample_rate
     phase = 0.0
     signal_frequency = 10.0  # Hz
-     # Convert drift from (milliseconds/minute) to (seconds/second).
+    # Convert drift from (milliseconds/minute) to (seconds/second).
     drift_per_second = (drift_ms_per_minute / 1000.0) / 60.0
-    extra_sleep_accumulator = 0.0
+    # Precompute constants used for timestamps
+    sample_indices = np.arange(chunk_size, dtype=np.float64)
+    dt_src = delta_time * (1.0 + drift_per_second)
+
+    # High-resolution scheduler setup (monotonic)
+    start_nsec = time.perf_counter_ns()
+    next_send_nsec = start_nsec
+
+    # Source clock start time in the LSL time domain (seconds)
+    src_time_start = local_clock()
+    current_src_time = src_time_start
+
+    # Helper: precise sleep-until with coarse sleep + short spin
+    def sleep_until(target_nsec: int) -> None:
+        while True:
+            now_nsec = time.perf_counter_ns()
+            remaining_nsec = target_nsec - now_nsec
+            if remaining_nsec <= 0:
+                return
+            # Coarse sleep when far; keep 1ms margin
+            if remaining_nsec > 2_000_000:  # > 2 ms
+                time.sleep((remaining_nsec - 1_000_000) / 1e9)
+            else:
+                # Busy-wait for the last ~2 ms
+                while time.perf_counter_ns() < target_nsec:
+                    pass
+                return
 
     print("Now streaming data...")
+
+    # --- Prime the pump: Generate and push the very first chunk immediately ---
+    chunk, phase = generate_sine_chunk(
+        current_phase=phase,
+        chunk_size=chunk_size,
+        num_channels=num_channels,
+        frequency=signal_frequency,
+        delta_time=delta_time,
+    )
+    if chunk.dtype != np.float32:
+        chunk = chunk.astype(np.float32, copy=False)
+    ts_chunk = current_src_time + sample_indices * dt_src
+    # Do not drop the first chunk to ensure immediate startup
+    outlet.push_chunk(chunk, timestamps=ts_chunk.tolist())
+
+    # Prepare schedule for the next send
+    chunk_duration = chunk_size * delta_time
+    next_send_nsec += int(chunk_duration * 1e9)
+
+    # --- Main loop: prepare next chunk before waiting, then push at the tick ---
     while True:
-        # 1. Generate a chunk of data
+        # Advance source clock to the start of the next chunk and synthesize it
+        current_src_time += chunk_size * dt_src
         chunk, phase = generate_sine_chunk(
             current_phase=phase,
             chunk_size=chunk_size,
@@ -125,29 +172,23 @@ def run_synthetic_outlet(
             frequency=signal_frequency,
             delta_time=delta_time,
         )
+        if chunk.dtype != np.float32:
+            chunk = chunk.astype(np.float32, copy=False)
+        ts_chunk = current_src_time + sample_indices * dt_src
 
-        # 2. Simulate burst loss and push the chunk
+        # Compute the precise sleep target (with non-accumulating jitter)
+        next_send_nsec += int(chunk_duration * 1e9)
+        if jitter_ms > 0:
+            jitter_s = rng.uniform(-jitter_ms / 1000.0, jitter_ms / 1000.0)
+            sleep_target = next_send_nsec + int(jitter_s * 1e9)
+        else:
+            sleep_target = next_send_nsec
+        sleep_until(sleep_target)
+
+        # At the precise tick, simulate burst loss and push
         drop_prob = burst_loss_percent * 0.01
         if rng.random() >= drop_prob:
-            outlet.push_chunk(chunk)
-
-        # 3. Calculate sleep duration with impairments
-        chunk_duration = chunk_size * delta_time
-        sleep_time = chunk_duration
-
-        # Add jitter
-        if jitter_ms > 0:
-            sleep_time += rng.uniform(-jitter_ms / 1000.0, jitter_ms / 1000.0)
-        time.sleep(sleep_time)
-
-        # Add clock drift
-        if drift_ms_per_minute != 0:
-            extra_sleep_accumulator += drift_per_second * chunk_duration
-            # To avoid performance issues with very small sleep durations,
-            # only sleep when the accumulated drift is at least 1ms.
-            if extra_sleep_accumulator >= 0.001:  # Sleep for accumulated drift
-                time.sleep(extra_sleep_accumulator)
-                extra_sleep_accumulator = 0.0
+            outlet.push_chunk(chunk, timestamps=ts_chunk.tolist())
 
 def main():
     """The main entry point for running the outlet from the command line."""
