@@ -26,6 +26,7 @@ class Summary:
         isi_p50_ms (float): Median (50th percentile) ISI in milliseconds.
         isi_p95_ms (float): 95th percentile ISI in milliseconds.
         isi_p99_ms (float): 99th percentile ISI in milliseconds.
+        sequence_discontinuities (int): Number of chunks where the first timestamp is less than the previous chunk's last timestamp (chronological order violation).
     """
 
     p50_ms: float
@@ -44,6 +45,7 @@ class Summary:
     isi_p50_ms: float
     isi_p95_ms: float
     isi_p99_ms: float
+    sequence_discontinuities: int
 
 
 def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nominal_rate: float, ring_drops: int = 0) -> Summary:
@@ -83,11 +85,18 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
     recv_times = []
     src_times = []
     total_sample_count = 0
+    sequence_discontinuities = 0
+    prev_last_ts = None
 
     for _data, source_timestamps, chunk_rcv_timestamp in chunks:
         sample_count = len(source_timestamps)
         if sample_count == 0:
             continue
+        # Chronological order check: first ts of this chunk vs last ts of previous chunk
+        if prev_last_ts is not None and source_timestamps[0] < prev_last_ts:
+            sequence_discontinuities += 1
+        prev_last_ts = float(source_timestamps[-1])
+
         total_sample_count += sample_count
         # Reconstruct per-sample receive timestamps assuming the provided
         # chunk receive time corresponds to the last sample in the chunk.
@@ -158,4 +167,5 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         float(isi_p50),
         float(isi_p95),
         float(isi_p99),
+        int(sequence_discontinuities),
     )
