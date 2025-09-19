@@ -16,6 +16,7 @@ from pathlib import Path
 
 import typer
 from rich import print
+from rich.table import Table
 
 from .metrics import compute_metrics
 
@@ -38,8 +39,23 @@ def measure(
     chunk_size: int = 32,
     nominal_sample_rate: float = 1000.0,
     output_directory: Path = Path("results/run_001"),
+    print_summary: bool = typer.Option(
+        True,
+        "--summary/--no-summary",
+        help="Print brief metrics summary to the console.",
+    ),
+    verbose_summary: bool = typer.Option(
+        False,
+        "--verbose-summary/--no-verbose-summary",
+        help="Include extended metrics in the console summary.",
+    ),
+    json_summary: bool = typer.Option(
+        False,
+        "--json-summary/--no-json-summary",
+        help="Print metrics as a compact JSON object to stdout.",
+    ),
 ):
-    """Collect samples from an LSL stream and writes JSON+CSV artifacts for reporting.
+    """Collect samples from an LSL stream and write JSON+CSV artifacts for reporting.
 
     This command-line utility connects to an LSL stream, collects a specified
     duration of data, and saves key metrics and raw data to files for
@@ -51,13 +67,19 @@ def measure(
         duration_seconds: The duration in seconds to collect samples.
         chunk_size: The maximum number of samples to pull from the stream per chunk.
         nominal_sample_rate: The nominal sample rate of the stream in Hz.
-        output_directory: The directory where result files will be saved.
-                          It will be created if it does not exist.
+        output_directory: The directory where result files will be saved. 
+        It will be created if it does not exist.
+        print_summary: Whether to print a concise metrics table to the console 
+          (default: True).
+        verbose_summary: Whether to include extended metrics in the table 
+          (default: False).
+        json_summary: Whether to print the metrics as compact JSON to stdout 
+          (default: False).
 
     Side Effects:
         - Writes `latency.csv`, `times.csv`, and `summary.json` to the output directory.
         - Prints a completion message to the console.
-
+        - Optionally prints a summary table and/or JSON to stdout.
     """
     from .measure import InletWorker
 
@@ -122,24 +144,68 @@ def measure(
     with open(output_directory / "summary.json", "w") as summary_file:
         json.dump({**summary.__dict__, **metadata}, summary_file, indent=2)
 
+    # Optionally print a concise summary table of key metrics
+    if print_summary:
+        title = (
+            "Measurement Summary (verbose)"
+            if verbose_summary
+            else "Measurement Summary"
+        )
+        table = Table(title=title, show_lines=False)
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        table.add_row("p50 latency", f"{summary.p50_ms:.2f} ms")
+        table.add_row("p95 latency", f"{summary.p95_ms:.2f} ms")
+        table.add_row("p99 latency", f"{summary.p99_ms:.2f} ms")
+        table.add_row("jitter (p95-p50)", f"{summary.jitter_ms:.2f} ms")
+        table.add_row(
+            "eff. sample rate",
+            f"{summary.effective_sample_rate_hz:.2f} Hz",
+        )
+        table.add_row(
+            "drift",
+            f"{summary.drift_ms_per_min:.2f} ms/min",
+        )
+        table.add_row("drops", f"{summary.drops_percentage:.2f} %")
+        table.add_row("samples", f"{summary.total_sample_count}")
+        table.add_row("ring drops", f"{summary.ring_drops}")
+
+        if verbose_summary:
+            table.add_row("max latency", f"{summary.max_latency_ms:.2f} ms")
+            table.add_row("jitter std", f"{summary.jitter_std:.2f} ms")
+            table.add_row("ISI p95", f"{summary.isi_p95_ms:.2f} ms")
+            table.add_row("ISI p99", f"{summary.isi_p99_ms:.2f} ms")
+            table.add_row("R-R std", f"{summary.rr_std_ms:.2f} ms")
+            table.add_row(
+                "seq discontinuities",
+                f"{summary.sequence_discontinuities}",
+            )
+
+        print(table)
+
     print("[bold green]Done[/] ->", output_directory)
+
+    # Optional: print compact JSON summary to stdout for scripting
+    if json_summary:
+        print(json.dumps(summary.__dict__, separators=(",", ":")))
 
 
 @app.command()
-def report(run: Path = None):
-    """Render an HTML report from measurement artifacts in a results directory.
+def report(
+    run: Path | None = None,
+):
+    """Render an HTML report from measurement artifacts in a results directory."""
+    from .report import render_html_report
 
-    Args:
-        run (Path): Path to the results directory containing summary.json.
-
-    Side Effects:
-        Renders and writes an HTML report to the results directory.
-    """
     if run is None:
-        run = typer.Argument(..., help="results directory containing summary.json")
-    from .report import render_report
-
-    render_report(run)
+        run = typer.prompt(
+            "Enter the results directory containing summary.json",
+            type=Path,
+        )
+    if not isinstance(run, Path):
+        raise typer.BadParameter("The results directory must be a valid Path.")
+    render_html_report(run)
 
 
 if __name__ == "__main__":
