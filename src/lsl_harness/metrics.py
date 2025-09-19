@@ -11,8 +11,8 @@ class Summary:
 
     Attributes:
         p50_ms (float): p50 (median) latency in milliseconds.
-        p95_ms (float): p95 latency in milliseconds.
-        p99_ms (float): p99 latency in milliseconds.
+        p95_ms (float): p95 latency in milliseconds. (95% of samples are below this)
+        p99_ms (float): p99 latency in milliseconds. (99% of samples are below this)
         jitter_ms (float): Jitter (p95 - p50 latency) in milliseconds.
         effective_sample_rate_hz (float): Effective sample rate in Hz.
         drift_ms_per_min (float): Clock drift in milliseconds per minute.
@@ -98,8 +98,8 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
     drift_ms_per_min = float(slope_ms_per_s * 60.0)
 
     # --- Estimate drop percentage compared to expected sample count ---
-    expected = nominal_rate * duration
-    drops_percentage = float(max(0.0, (expected - total_sample_count) / max(expected, 1.0) * 100.0))
+    expected_sample_count = nominal_rate * duration
+    drops_percentage = float(max(0.0, (expected_sample_count - total_sample_count) / max(expected_sample_count, 1.0) * 100.0))
 
     # --- Package results in Summary dataclass ---
     return Summary(
