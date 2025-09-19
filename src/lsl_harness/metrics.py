@@ -66,12 +66,19 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         if sample_count == 0:
             continue
         total_sample_count += sample_count
-        # Compute per-sample latency (ms) for this chunk
-        latencies.extend((chunk_rcv_timestamp - source_timestamps) * 1000.0)
-        # Store receive time for each sample in the chunk
-        recv_times.extend([chunk_rcv_timestamp] * sample_count)
-        # Store source timestamps for each sample
-        src_times.extend(source_timestamps)
+        # Reconstruct per-sample receive timestamps assuming the provided
+        # chunk receive time corresponds to the last sample in the chunk.
+        # This yields recv_individual = recv_last - (ts_last - ts_individual), which equals ts_individual + constant latency.
+        ts_last = float(source_timestamps[-1])
+        per_sample_recv = chunk_rcv_timestamp - (ts_last - source_timestamps)
+        # Compute per-sample latency (ms) for samples in this chunk
+        chunk_latencies = (per_sample_recv - source_timestamps) * 1000.0
+        # Convert to Python floats to avoid keeping a reference to the NumPy array, 
+        # which helps with memory management and prevents unintended side effects from array mutation
+        # (np types, like np.float64, can hold references to the original array. Specifically, when np does a view rather than a copy)
+        latencies.extend(chunk_latencies.tolist())
+        recv_times.extend(per_sample_recv.tolist())
+        src_times.extend(source_timestamps.tolist())
 
     # --- Validate sample count ---
     if total_sample_count < 8:
