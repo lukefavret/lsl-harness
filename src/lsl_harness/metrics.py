@@ -25,6 +25,7 @@ class Summary:
     p95_ms: float
     p99_ms: float
     jitter_ms: float
+    jitter_std: float
     effective_sample_rate_hz: float
     drift_ms_per_min: float
     drop_estimate: float  # %
@@ -89,9 +90,10 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
     recv_timestamp_array = np.array(recv_times, dtype=np.float64)
     src_timestamps_array = np.array(src_times, dtype=np.float64)
 
-    # --- Compute latency percentiles and jitter ---
+    # --- Compute latency percentiles and jitter, jitter standard deviation---
     p50, p95, p99 = np.percentile(latency_array, [50, 95, 99])
-    jitter = p95 - p50
+    jitter_ms = p95 - p50
+    jitter_std = np.std(latency_array)
 
     # --- Compute effective sample rate (Hz) ---
     duration = float(max(src_timestamps_array[-1] - src_timestamps_array[0], 1e-6))
@@ -113,7 +115,8 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         float(p50),
         float(p95),
         float(p99),
-        float(jitter),
+        float(jitter_ms),
+        float(jitter_std),
         float(effective_sample_rate_hz),
         float(drift_ms_per_min),
         drops_percentage,
