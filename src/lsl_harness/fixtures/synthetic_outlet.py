@@ -136,7 +136,7 @@ def run_synthetic_outlet(
             if remaining_nsec > 2_000_000:  # > 2 ms
                 time.sleep((remaining_nsec - 1_000_000) / 1e9)
             else:
-                # Busy-wait for the last ~2 ms
+                # Busy-wait for the last ~2 ms. High CPU, but required when on 'untuned' OSes.
                 while time.perf_counter_ns() < target_nsec:
                     pass
                 return
@@ -155,7 +155,7 @@ def run_synthetic_outlet(
         chunk = chunk.astype(np.float32, copy=False)
     ts_chunk = current_src_time + sample_indices * dt_src
     # Do not drop the first chunk to ensure immediate startup
-    outlet.push_chunk(chunk, timestamps=ts_chunk.tolist())
+    outlet.push_chunk(chunk, timestamps=ts_chunk)
 
     # Prepare schedule for the next send
     chunk_duration = chunk_size * delta_time
@@ -188,7 +188,7 @@ def run_synthetic_outlet(
         # At the precise tick, simulate burst loss and push
         drop_prob = burst_loss_percent * 0.01
         if rng.random() >= drop_prob:
-            outlet.push_chunk(chunk, timestamps=ts_chunk.tolist())
+            outlet.push_chunk(chunk, timestamps=ts_chunk)
 
 def main():
     """The main entry point for running the outlet from the command line."""
