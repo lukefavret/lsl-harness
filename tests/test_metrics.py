@@ -12,7 +12,7 @@ def fake_chunks(n=1000):
 def test_metrics_basic():
     s = compute_metrics(list(fake_chunks()), 1000.0, ring_drops=0)
     assert 4.0 <= s.p50_ms <= 6.0
-    assert s.drop_estimate == 0.0
+    assert s.drops_percentage == 0.0
     # ISI should be close to 1 ms for 1000 Hz, stddev near zero
     assert abs(s.isi_mean_ms - 1.0) < 1e-3
     assert s.isi_std_ms < 1e-6
