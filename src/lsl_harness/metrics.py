@@ -53,6 +53,7 @@ class Summary:
 
 
 def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nominal_rate: float, ring_drops: int = 0) -> Summary:
+    import warnings
     """Compute latency, jitter, effective sample rate, drift, drop estimate, ISI, receive interval, and sequence discontinuity metrics from LSL chunk data.
 
     Args:
@@ -88,7 +89,7 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         - Receive interval (R-R) metrics are computed from chunk receive times and reflect consumer-side regularity.
         - sequence_discontinuities counts chunks that violate chronological order (first ts < previous last ts).
     """
-    # --- Aggregate all samples and timestamps from chunks ---
+    # === Aggregate all samples and timestamps from chunks ===
     latencies = []
     recv_times = []
     src_times = []
@@ -108,9 +109,12 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         prev_last_ts = float(source_timestamps[-1])
 
         total_sample_count += sample_count
-        # Reconstruct per-sample receive timestamps assuming the provided
-        # chunk receive time corresponds to the last sample in the chunk.
-        # This yields recv_individual = recv_last - (ts_last - ts_individual), which equals ts_individual + constant latency.
+        # Reconstruct per-sample receive timestamps:
+        # Assume the chunk receive time (chunk_rcv_timestamp) is when the last sample arrived.
+        # For each sample, estimate its receive time as:
+        #   recv_individual = recv_last - (ts_last - ts_individual)
+        # This is equivalent to shifting all source timestamps by a constant latency offset,
+        # preserving the original timing structure within the chunk.
         ts_last = float(source_timestamps[-1])
         per_sample_recv = chunk_rcv_timestamp - (ts_last - source_timestamps)
         # Compute per-sample latency (ms) for samples in this chunk
@@ -122,44 +126,56 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         recv_times.extend(per_sample_recv.tolist())
         src_times.extend(source_timestamps.tolist())
 
-    # --- Validate sample count ---
+    # === Validate sample count ===
     if total_sample_count < 8:
         raise ValueError("Not enough samples")
 
-    # --- Convert lists to numpy arrays for efficient computation ---
+    # Warn if not enough chunk receive times for R-R stats
+    if len(chunk_receive_times) <= 1:
+        warnings.warn("Only one or zero chunk receive times: R-R interval statistics will be zero.")
+
+    # === Convert lists to numpy arrays for efficient computation ===
     latency_array = np.array(latencies, dtype=np.float64)
     recv_timestamp_array = np.array(recv_times, dtype=np.float64)
     src_timestamps_array = np.array(src_times, dtype=np.float64)
 
-    # --- Compute latency percentiles, max, and jitter, jitter standard deviation---
+    # === Compute latency percentiles, max, and jitter, jitter standard deviation ===
     p50, p95, p99 = np.percentile(latency_array, [50, 95, 99])
     max_latency_ms = float(np.max(latency_array))
     jitter_ms = p95 - p50
     jitter_std = np.std(latency_array)
 
-    # --- Compute effective sample rate (Hz) ---
-    duration = float(max(src_timestamps_array[-1] - src_timestamps_array[0], 1e-6))
+    # === Compute effective sample rate (Hz) ===
+    MIN_DURATION = 1e-6  # Minimum duration to avoid division by zero if timestamps are identical
+    duration = float(max(src_timestamps_array[-1] - src_timestamps_array[0], MIN_DURATION))
     effective_sample_rate_hz = total_sample_count / duration
 
-    # --- Estimate clock drift (ms/min) using least-squares regression ---
+    # === Estimate clock drift (ms/min) using least-squares regression ===
     offset_ms = (recv_timestamp_array - src_timestamps_array) * 1000.0
     t_norm = src_timestamps_array - src_timestamps_array[0]
     regression_matrix = np.vstack([t_norm, np.ones_like(t_norm)]).T
     slope_ms_per_s, _ = np.linalg.lstsq(regression_matrix, offset_ms, rcond=None)[0]
     drift_ms_per_min = float(slope_ms_per_s * 60.0)
 
-    # --- Estimate drop percentage compared to expected sample count ---
+    # === Estimate drop percentage compared to expected sample count ===
     expected_sample_count = nominal_rate * duration
     drops_percentage = float(max(0.0, (expected_sample_count - total_sample_count) / max(expected_sample_count, 1.0) * 100.0))
 
-    # --- Compute ISI (inter-sample interval) statistics ---
-    isi = np.diff(src_timestamps_array)
-    isi_ms = isi * 1000.0
-    isi_mean_ms = float(np.mean(isi_ms))
-    isi_std_ms = float(np.std(isi_ms))
-    isi_p50, isi_p95, isi_p99 = np.percentile(isi_ms, [50, 95, 99])
+    # === Compute ISI (inter-sample interval) statistics ===
+    if len(src_timestamps_array) > 1:
+        isi = np.diff(src_timestamps_array)
+        isi_ms = isi * 1000.0
+        isi_mean_ms = float(np.mean(isi_ms))
+        isi_std_ms = float(np.std(isi_ms))
+        isi_p50, isi_p95, isi_p99 = np.percentile(isi_ms, [50, 95, 99])
+    else:
+        isi_mean_ms = 0.0
+        isi_std_ms = 0.0
+        isi_p50 = 0.0
+        isi_p95 = 0.0
+        isi_p99 = 0.0
 
-    # --- Compute receive interval (R-R) statistics ---
+    # === Compute receive interval (R-R) statistics ===
     if len(chunk_receive_times) > 1:
         rr_intervals = np.diff(chunk_receive_times)
         rr_intervals_ms = rr_intervals * 1000.0
@@ -169,7 +185,7 @@ def compute_metrics(chunks: Iterable[tuple[np.ndarray, np.ndarray, float]], nomi
         rr_mean_ms = 0.0
         rr_std_ms = 0.0
 
-    # --- Package results in Summary dataclass ---
+    # === Package results in Summary dataclass ===
     return Summary(
         p50_ms=float(p50),
         p95_ms=float(p95),
