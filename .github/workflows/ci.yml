@@ -32,3 +32,6 @@ jobs:
 
       - name: CLI help (module entry)
         run: uv run python -m lsl_harness.cli --help
+
+      - name: Run tests
+        run: uv run pytest

@@ -9,6 +9,11 @@ import json
 from pathlib import Path
 
 import jinja2
+
+# Third-party imports; set non-interactive backend before importing pyplot
+import matplotlib
+
+matplotlib.use("Agg")  # must be set before importing pyplot
 import matplotlib.pyplot as plt
 import numpy as np
 
