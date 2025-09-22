@@ -68,7 +68,8 @@ def compute_metrics(
     nominal_rate: float,
     ring_drops: int = 0,
 ) -> Summary:
-    """Compute latency, jitter, effective sample rate, drift, drop estimate, ISI, receive interval,and sequence discontinuity metrics from LSL chunk data.
+    """Compute latency, jitter, effective sample rate, drift, drop estimate, ISI,
+    receive interval, and sequence discontinuity metrics from LSL chunk data.
 
     Args:
         chunks (Iterable): Iterable of tuples (data, ts, recv) where:
