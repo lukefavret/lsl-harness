@@ -1,4 +1,5 @@
 """A thread-safe, fixed-capacity ring buffer."""
+
 import threading
 from collections import deque
 

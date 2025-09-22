@@ -1,16 +1,150 @@
-<!doctype html><meta charset="utf-8">
+<!doctype html>
+<meta charset="utf-8">
 <title>LSL Harness Report</title>
-<h1>LSL Harness Report</h1>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f4f4f4;
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #e8f4fd;
+        }
+        .plots {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .plots figure {
+            margin: 0;
+            text-align: center;
+        }
+        .plots img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        details {
+            margin-top: 2rem;
+            background-color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #34495e;
+            color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LSL Harness Report</h1>
+
+<h2>Metrics Summary</h2>
+<table border="1" cellspacing="0" cellpadding="4">
+  <tr><th colspan="2">Latency</th></tr>
+  <tr><td>p50</td><td>{{ p50_ms | round(2) }} ms</td></tr>
+  <tr><td>p95</td><td>{{ p95_ms | round(2) }} ms</td></tr>
+  <tr><td>p99</td><td>{{ p99_ms | round(2) }} ms</td></tr>
+  <tr><td>Max</td><td>{{ max_latency_ms | round(2) }} ms</td></tr>
+
+  <tr><th colspan="2">Variability</th></tr>
+  <tr><td>Jitter (p95-p50)</td><td>{{ jitter_ms | round(2) }} ms</td></tr>
+  <tr><td>Jitter std</td><td>{{ jitter_std | round(2) }} ms</td></tr>
+
+  <tr><th colspan="2">Rate & Loss</th></tr>
+  <tr><td>Effective Hz</td><td>{{ effective_sample_rate_hz | round(2) }}</td></tr>
+  <tr><td>Drop estimate</td><td>{{ drops_percentage | round(2) }} %</td></tr>
+  <tr><td>Total samples</td><td>{{ total_sample_count }}</td></tr>
+  <tr><td>Ring drops</td><td>{{ ring_drops }}</td></tr>
+
+  <tr><th colspan="2">Source Timing (ISI)</th></tr>
+  <tr><td>ISI mean</td><td>{{ isi_mean_ms | round(2) }} ms</td></tr>
+  <tr><td>ISI std</td><td>{{ isi_std_ms | round(2) }} ms</td></tr>
+  <tr><td>ISI p50</td><td>{{ isi_p50_ms | round(2) }} ms</td></tr>
+  <tr><td>ISI p95</td><td>{{ isi_p95_ms | round(2) }} ms</td></tr>
+  <tr><td>ISI p99</td><td>{{ isi_p99_ms | round(2) }} ms</td></tr>
+
+  <tr><th colspan="2">Receive Intervals (R-R)</th></tr>
+  <tr><td>R-R mean</td><td>{{ rr_mean_ms | round(2) }} ms</td></tr>
+  <tr><td>R-R std</td><td>{{ rr_std_ms | round(2) }} ms</td></tr>
+
+  <tr><th colspan="2">Clock</th></tr>
+  <tr><td>Drift</td><td>{{ drift_ms_per_min | round(2) }} ms/min</td></tr>
+
+  <tr><th colspan="2">Sequence</th></tr>
+  <tr><td>Discontinuities</td><td>{{ sequence_discontinuities }}</td></tr>
+</table>
+
+<h2>Plots</h2>
+<div>
+  <figure>
+    <img src="latency_hist.png" alt="Latency histogram" style="max-width: 600px; width: 100%; height: auto;">
+    <figcaption>Latency histogram (ms)</figcaption>
+  </figure>
+  {% if drift_plot %}
+  <figure>
+    <img src="drift_plot.png" alt="Offset vs Time (drift)" style="max-width: 600px; width: 100%; height: auto;">
+    <figcaption>Offset vs Time (drift)</figcaption>
+  </figure>
+  {% endif %}
+  </div>
+
+<h2>Run Parameters</h2>
 <ul>
-  <li>p50: {{ p50_ms | round(2) }} ms</li>
-  <li>p95: {{ p95_ms | round(2) }} ms</li>
-  <li>p99: {{ p99_ms | round(2) }} ms</li>
-  <li>Jitter (p95-p50): {{ jitter_ms | round(2) }} ms</li>
-  <li>Effective Hz: {{ effective_sample_rate_hz | round(2) }}</li>
-  <li>Drift: {{ drift_ms_per_min | round(2) }} ms/min</li>
-  <li>Drops (est): {{ drop_estimate | round(2) }} %</li>
-  <li>Ring overwrites: {{ ring_drops }}</li>
-</ul>
-<img src="latency_hist.png" alt="latency histogram">
-{% if drift_plot %}<img src="drift_plot.png" alt="drift plot">{% endif %}
-<pre>{{ environment|tojson(indent=2) }}</pre>
+  <li>Selector: {{ parameters.selector.key }}={{ parameters.selector.value }}</li>
+  <li>Duration (s): {{ parameters.duration_seconds }}</li>
+  <li>Chunk size: {{ parameters.chunk_size }}</li>
+  <li>Nominal sample rate (Hz): {{ parameters.nominal_sample_rate }}</li>
+  <li>Python: {{ environment.python }}</li>
+  <li>Platform: {{ environment.platform }}</li>
+  <li>pylsl: {{ environment.pylsl_version }}</li>
+  </ul>
+
+<details>
+  <summary>Raw environment JSON</summary>
+  <pre>{{ environment|tojson(indent=2) }}</pre>
+  <pre>{{ parameters|tojson(indent=2) }}</pre>
+</details>
+    </div>
+</body>
+</html>
