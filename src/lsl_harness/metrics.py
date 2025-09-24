@@ -2,7 +2,7 @@
 
 import warnings
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -15,31 +15,39 @@ class Summary:
         p50_ms (float): Median (50th percentile) latency in milliseconds.
         p95_ms (float): 95th percentile latency in milliseconds.
         p99_ms (float): 99th percentile latency in milliseconds.
-        max_latency_ms (float): Maximum observed latency in milliseconds 
+        max_latency_ms (float): Maximum observed latency in milliseconds
           (worst-case single sample).
         jitter_ms (float): Jitter, defined as (p95 - p50) latency in milliseconds.
         jitter_std (float): Standard deviation of all per-sample latencies (ms).
-        effective_sample_rate_hz (float): Effective sample rate in Hz, based on source 
+        effective_sample_rate_hz (float): Effective sample rate in Hz, based on source
           timestamps.
         drift_ms_per_min (float): Estimated clock drift in milliseconds per minute
           (recv - src slope)
-        drop_estimate (float): Estimated percentage of dropped samples compared to 
+        drop_estimate (float): Estimated percentage of dropped samples compared to
           nominal rate.
         total_sample_count (int): Total number of samples received.
         ring_drops (int): Count of items dropped by the ring buffer.
-        isi_mean_ms (float): Mean inter-sample interval (ISI) in milliseconds 
+        isi_mean_ms (float): Mean inter-sample interval (ISI) in milliseconds
           (source clock).
         isi_std_ms (float): Standard deviation of ISI (ms).
         isi_p50_ms (float): Median (50th percentile) ISI in milliseconds.
         isi_p95_ms (float): 95th percentile ISI in milliseconds.
         isi_p99_ms (float): 99th percentile ISI in milliseconds.
-        sequence_discontinuities (int): Number of chunks where the first timestamp is 
+        sequence_discontinuities (int): Number of chunks where the first timestamp is
           less than the
           previous chunk's last timestamp (chronological order violation).
-        rr_mean_ms (float): Mean interval between chunk receive times
-          (ms, receive interval stability)
-        rr_std_ms (float): Standard deviation of chunk receive intervals 
-          (ms, receive interval stability).
+                rr_mean_ms (float): Mean interval between chunk receive times
+                    (ms, receive interval stability)
+                rr_std_ms (float): Standard deviation of chunk receive intervals
+                    (ms, receive interval stability).
+                process_cpu_percent_avg (float | None): Average CPU utilization of the
+                    measurement process, if recorded.
+                process_rss_avg_bytes (float | None): Average resident set size of the
+                    measurement process in bytes, if recorded.
+                system_cpu_percent_avg (float | None): Average CPU utilization across
+                    all cores, if recorded.
+                system_cpu_percent_per_core_avg (tuple[float, ...]): Average CPU
+                    utilization per core, if recorded.
     """
 
     p50_ms: float
@@ -61,6 +69,10 @@ class Summary:
     sequence_discontinuities: int
     rr_mean_ms: float
     rr_std_ms: float
+    process_cpu_percent_avg: float | None = None
+    process_rss_avg_bytes: float | None = None
+    system_cpu_percent_avg: float | None = None
+    system_cpu_percent_per_core_avg: tuple[float, ...] = field(default_factory=tuple)
 
 
 def compute_metrics(
@@ -68,8 +80,7 @@ def compute_metrics(
     nominal_rate: float,
     ring_drops: int = 0,
 ) -> Summary:
-    """Compute latency, jitter, effective sample rate, drift, drop estimate, ISI,
-    receive interval, and sequence discontinuity metrics from LSL chunk data.
+    """Compute latency, jitter, effective sample rate, drift, drop estimate, ISI, receive interval, and sequence discontinuity metrics from LSL chunk data.
 
     Args:
         chunks (Iterable): Iterable of tuples (data, ts, recv) where:
@@ -77,7 +88,7 @@ def compute_metrics(
             ts (np.ndarray): Source timestamps in seconds (float64), length n_samples.
             recv (float): Single receive time in seconds for the entire chunk.
         nominal_rate (float): Claimed sample rate of the stream, in Hz.
-        ring_drops (int, optional): Count of items overwritten or rejected by the 
+        ring_drops (int, optional): Count of items overwritten or rejected by the
           ring buffer. Defaults to 0.
 
     Returns:
@@ -101,11 +112,11 @@ def compute_metrics(
         - Latency uses one receive timestamp per chunk (approximation).
         - Drift is the least-squares slope of (recv - src) over time, reported in ms/min
         - Drop estimate compares expected (nominal_rate * duration) vs. received samples
-        - ISI (inter-sample interval) metrics are computed from source timestamps and 
+        - ISI (inter-sample interval) metrics are computed from source timestamps and
           reflect the timing regularity of the data source itself.
-        - Receive interval (R-R) metrics are computed from chunk receive times and 
+        - Receive interval (R-R) metrics are computed from chunk receive times and
           reflect consumer-side regularity.
-        - sequence_discontinuities counts chunks that violate chronological order 
+        - sequence_discontinuities counts chunks that violate chronological order
           (first ts < previous last ts).
     """
     # === Aggregate all samples and timestamps from chunks ===
@@ -129,7 +140,7 @@ def compute_metrics(
 
         total_sample_count += sample_count
         # Reconstruct per-sample receive timestamps:
-        # Assume the chunk receive time (chunk_rcv_timestamp) 
+        # Assume the chunk receive time (chunk_rcv_timestamp)
         # is when the last sample arrived.
         # For each sample, estimate its receive time as:
         # recv_individual = recv_last - (ts_last - ts_individual)
@@ -140,9 +151,9 @@ def compute_metrics(
         # Compute per-sample latency (ms) for samples in this chunk
         chunk_latencies = (per_sample_recv - source_timestamps) * 1000.0
         # Convert to Python floats to avoid keeping a reference to the NumPy array,
-        # which helps with memory management and prevents unintended side effects from 
+        # which helps with memory management and prevents unintended side effects from
         # array mutation
-        # (np types, like np.float64, can hold references to the original array. 
+        # (np types, like np.float64, can hold references to the original array.
         # Specifically, when np does a view rather than a copy)
         latencies.extend(chunk_latencies.tolist())
         recv_times.extend(per_sample_recv.tolist())
@@ -156,7 +167,7 @@ def compute_metrics(
     if len(chunk_receive_times) <= 1:
         warnings.warn(
             "One or zero chunk receive times: R-R interval statistics will be zero.",
-            stacklevel=2
+            stacklevel=2,
         )
 
     # === Convert lists to numpy arrays for efficient computation ===
@@ -242,4 +253,8 @@ def compute_metrics(
         sequence_discontinuities=int(sequence_discontinuities),
         rr_mean_ms=rr_mean_ms,
         rr_std_ms=rr_std_ms,
+        process_cpu_percent_avg=None,
+        process_rss_avg_bytes=None,
+        system_cpu_percent_avg=None,
+        system_cpu_percent_per_core_avg=(),
     )

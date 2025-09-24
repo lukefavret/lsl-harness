@@ -1,10 +1,11 @@
-LSL-Harness is a lightweight, portable tool for measuring surface-level performance of Lab Streaming Layer (LSL) streams. With it you can calculate latency, jitter, drift, effective sample rate, and dropped samples without spinning up a full LabRecorder pipeline.
+LSL-Harness is a lightweight, portable tool for measuring surface-level performance of Lab Streaming Layer (LSL) streams. With it you can calculate latency, jitter, drift, effective sample rate, dropped samples, and (optionally) basic resource usage (CPU & memory) without spinning up a full LabRecorder pipeline.
 
 [Quickstart](#quickstart)
 
 ## What it does
 
 - Measure LSL latency, jitter, drift, effective sample rate, and drop percentages.
+- Sample optional process + system resource usage (CPU %, RSS) during acquisition.
 - Emit CSV + JSON artifacts that are easy to diff or archive.
 - Render polished HTML summaries that you can share with teammates or attach to tickets.
 
@@ -53,7 +54,7 @@ When the command finishes you will see a `results/demo_run/` directory containin
 
 - `latency.csv` — per-sample latency in milliseconds.
 - `times.csv` — source and receive timestamps for drift analysis.
-- `summary.json` — computed statistics and environment metadata.
+- `summary.json` — computed statistics and environment metadata (plus resource metrics if `psutil` is installed).
 
 (If you omit `--output-directory`, the default is `results/run_001`.)
 

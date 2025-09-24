@@ -138,7 +138,7 @@ def run_synthetic_outlet(
             if remaining_nsec > 2_000_000:  # > 2 ms
                 time.sleep((remaining_nsec - 1_000_000) / 1e9)
             else:
-                # Busy-wait for the last ~2 ms. 
+                # Busy-wait for the last ~2 ms.
                 # High CPU, but required when on 'untuned' OSes.
                 while time.perf_counter_ns() < target_nsec:
                     pass

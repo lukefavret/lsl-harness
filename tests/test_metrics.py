@@ -4,6 +4,7 @@ This module tests the compute_metrics function using synthetic LSL-like data.
 It verifies latency percentiles, jitter, effective rate, drift, drop percent,
 ISI stats, sequence discontinuities, and receive-interval (R-R) metrics.
 """
+
 import numpy as np
 import pytest
 
@@ -40,6 +41,11 @@ def test_metrics_basic():
     assert summary.isi_std_ms < 1e-6
     # Max latency should be close to p99 for this synthetic data
     assert abs(summary.max_latency_ms - summary.p99_ms) < 1.0
+    # Resource metrics defaults
+    assert summary.process_cpu_percent_avg is None
+    assert summary.process_rss_avg_bytes is None
+    assert summary.system_cpu_percent_avg is None
+    assert summary.system_cpu_percent_per_core_avg == ()
 
 
 def test_max_latency_outlier():
