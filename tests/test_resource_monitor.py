@@ -128,3 +128,10 @@ def test_snapshot_none_when_no_samples():
     )
     # No sampling performed
     assert monitor.snapshot() is None
+
+def test_fake_clock_call_returns_value():
+    """_FakeClock.__call__ returns the current clock value."""
+    clock = _FakeClock()
+    assert clock() == 0.0
+    clock.advance(1.5)
+    assert clock() == 1.5
