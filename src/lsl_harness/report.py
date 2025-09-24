@@ -26,7 +26,6 @@ PLOT_DPI = 120
 MS_PER_SECOND = 1000.0
 
 
-
 def render_html_report(run_directory: Path) -> None:
     """Generate an HTML report with plots from measurement run data.
 
@@ -56,22 +55,14 @@ def render_html_report(run_directory: Path) -> None:
     # --- Load summary data ---
     summary_file_path = run_directory / SUMMARY_JSON_FILE
     if not summary_file_path.exists():
-        raise FileNotFoundError(
-            f"Missing required file: {summary_file_path}"
-        )
-    summary = json.loads(
-        summary_file_path.read_text(encoding="utf-8")
-    )
+        raise FileNotFoundError(f"Missing required file: {summary_file_path}")
+    summary = json.loads(summary_file_path.read_text(encoding="utf-8"))
 
     # --- Generate latency histogram plot ---
     latency_file_path = run_directory / LATENCY_CSV_FILE
     if not latency_file_path.exists():
-        raise FileNotFoundError(
-            f"Missing required file: {latency_file_path}"
-        )
-    latency_values = np.loadtxt(
-        latency_file_path, delimiter=",", skiprows=1, ndmin=1
-    )
+        raise FileNotFoundError(f"Missing required file: {latency_file_path}")
+    latency_values = np.loadtxt(latency_file_path, delimiter=",", skiprows=1, ndmin=1)
     plt.figure()
     plt.hist(latency_values, bins=LATENCY_HIST_BINS)
     plt.xlabel("Latency (ms)")
@@ -88,18 +79,14 @@ def render_html_report(run_directory: Path) -> None:
     drift_plot_exists = False
     times_file_path = run_directory / TIMES_CSV_FILE
     if times_file_path.exists():
-        times_data = np.loadtxt(
-            times_file_path, delimiter=",", skiprows=1
-        )
+        times_data = np.loadtxt(times_file_path, delimiter=",", skiprows=1)
         # If only one row is present, np.loadtxt returns a 1D array;
         # reshape to 2D for consistency
         if times_data.ndim == 1:
             times_data = times_data[None, :]
         source_times = times_data[:, 0]
         received_times = times_data[:, 1]
-        offset_milliseconds = (
-            received_times - source_times
-        ) * MS_PER_SECOND
+        offset_milliseconds = (received_times - source_times) * MS_PER_SECOND
         elapsed_seconds = source_times - source_times[0]
         plt.figure()
         plt.plot(elapsed_seconds, offset_milliseconds)
@@ -120,9 +107,5 @@ def render_html_report(run_directory: Path) -> None:
         autoescape=False,
     )
     template = jinja_env.get_template("report.html.j2")
-    html_report = template.render(
-        drift_plot=drift_plot_exists, **summary
-    )
-    (run_directory / "report.html").write_text(
-        html_report, encoding="utf-8"
-    )
+    html_report = template.render(drift_plot=drift_plot_exists, **summary)
+    (run_directory / "report.html").write_text(html_report, encoding="utf-8")

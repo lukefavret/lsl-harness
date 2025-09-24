@@ -97,6 +97,27 @@
   <tr><td>Total samples</td><td>{{ total_sample_count }}</td></tr>
   <tr><td>Ring drops</td><td>{{ ring_drops }}</td></tr>
 
+    <tr><th colspan="2">Resource Usage</th></tr>
+    {% if process_cpu_percent_avg is not none %}
+    <tr><td>Process CPU (avg)</td><td>{{ process_cpu_percent_avg | round(2) }} %</td></tr>
+    {% endif %}
+    {% if system_cpu_percent_avg is not none %}
+    <tr><td>System CPU (avg)</td><td>{{ system_cpu_percent_avg | round(2) }} %</td></tr>
+    {% endif %}
+    {% if process_rss_avg_bytes is not none %}
+    <tr><td>Process RSS (avg)</td><td>{{ (process_rss_avg_bytes / (1024 * 1024)) | round(2) }} MiB</td></tr>
+    {% endif %}
+    {% if system_cpu_percent_per_core_avg %}
+    <tr>
+        <td>System CPU / core</td>
+        <td>
+            {% for value in system_cpu_percent_per_core_avg %}
+                core {{ loop.index0 }}: {{ value | round(2) }} %{% if not loop.last %}<br>{% endif %}
+            {% endfor %}
+        </td>
+    </tr>
+    {% endif %}
+
   <tr><th colspan="2">Source Timing (ISI)</th></tr>
   <tr><td>ISI mean</td><td>{{ isi_mean_ms | round(2) }} ms</td></tr>
   <tr><td>ISI std</td><td>{{ isi_std_ms | round(2) }} ms</td></tr>

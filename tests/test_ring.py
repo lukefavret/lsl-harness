@@ -3,6 +3,7 @@ from lsl_harness.ring import Ring
 import threading
 import time
 
+
 def test_ring_init():
     """Test ring buffer initialization."""
     r = Ring(capacity=10)
@@ -15,6 +16,7 @@ def test_ring_init():
     assert r.capacity == 5
     assert r.drop_oldest is False
 
+
 def test_ring_push_not_full():
     """Test pushing items to a ring buffer that is not full."""
     r = Ring(capacity=3)
@@ -23,10 +25,12 @@ def test_ring_push_not_full():
     assert list(r.q) == [1, 2]
     assert r.drops == 0
 
+
 def test_ring_drain_empty():
     """Test draining from an empty ring buffer."""
     r = Ring(capacity=3)
     assert r.drain_upto(5) == []
+
 
 def test_ring_drain_partially_full():
     """Test draining from a partially full ring buffer."""
@@ -38,6 +42,7 @@ def test_ring_drain_partially_full():
     assert list(r.q) == [3]
     assert r.drain_upto(5) == [3]
     assert list(r.q) == []
+
 
 def test_ring_overwrite_oldest():
     """Test the drop_oldest=True policy."""
@@ -62,6 +67,7 @@ def test_ring_overwrite_oldest():
     assert items == [3, 4, 5]
     assert r.drops == 2
 
+
 def test_ring_reject_newest():
     """Test the drop_oldest=False policy."""
     r = Ring(capacity=3, drop_oldest=False)
@@ -85,6 +91,7 @@ def test_ring_reject_newest():
     assert items == [1, 2, 3]
     assert r.drops == 2
 
+
 def test_ring_thread_safety():
     """Basic test for thread safety without drops."""
     num_items = 2000
@@ -95,6 +102,7 @@ def test_ring_thread_safety():
             r.push(i)
 
     consumed_items = []
+
     def consumer_loop():
         # This loop will run until all items produced are consumed
         while len(consumed_items) < num_items:
@@ -123,6 +131,7 @@ def test_ring_thread_safety():
     assert len(consumed_items) == num_items
     assert sorted(consumed_items) == list(range(num_items))
 
+
 @pytest.mark.parametrize("drop_oldest, push_result", [(True, True), (False, False)])
 def test_drops_counter(drop_oldest, push_result):
     """Test that the drops counter is incremented correctly."""
@@ -138,8 +147,8 @@ def test_drops_counter(drop_oldest, push_result):
     assert r.drops == 2
 
     r.drain_upto(1)
-    assert r.push(5) is True # Should not drop, there is space
+    assert r.push(5) is True  # Should not drop, there is space
     assert r.drops == 2
 
-    assert r.push(6) is push_result # Should drop/reject again
+    assert r.push(6) is push_result  # Should drop/reject again
     assert r.drops == 3
