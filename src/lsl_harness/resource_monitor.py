@@ -13,7 +13,7 @@ from typing import Any
 # Try to import psutil for resource monitoring; handle missing dependency gracefully.
 try:  # pragma: no cover - import is only exercised at runtime, not during tests
     import psutil as _psutil  # type: ignore
-except ModuleNotFoundError as exc:
+except ImportError as exc:
     # pragma: no cover - fallback path is only hit if psutil is missing at runtime
     _psutil = None  # type: ignore
     _PSUTIL_IMPORT_ERROR = exc  # type: ignore
