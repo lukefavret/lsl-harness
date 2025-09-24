@@ -1,3 +1,5 @@
+# LSL-Harness
+
 LSL-Harness is a lightweight, portable tool for measuring surface-level performance of Lab Streaming Layer (LSL) streams. With it you can calculate latency, jitter, drift, effective sample rate, dropped samples, and (optionally) basic resource usage (CPU & memory) without spinning up a full LabRecorder pipeline.
 
 [Quickstart](#quickstart)
