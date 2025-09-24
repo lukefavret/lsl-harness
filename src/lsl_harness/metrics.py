@@ -36,18 +36,18 @@ class Summary:
         sequence_discontinuities (int): Number of chunks where the first timestamp is
           less than the
           previous chunk's last timestamp (chronological order violation).
-                rr_mean_ms (float): Mean interval between chunk receive times
-                    (ms, receive interval stability)
-                rr_std_ms (float): Standard deviation of chunk receive intervals
-                    (ms, receive interval stability).
-                process_cpu_percent_avg (float | None): Average CPU utilization of the
-                    measurement process, if recorded.
-                process_rss_avg_bytes (float | None): Average resident set size of the
-                    measurement process in bytes, if recorded.
-                system_cpu_percent_avg (float | None): Average CPU utilization across
-                    all cores, if recorded.
-                system_cpu_percent_per_core_avg (tuple[float, ...]): Average CPU
-                    utilization per core, if recorded.
+        rr_mean_ms (float): Mean interval between chunk receive times
+          (ms, receive interval stability)
+        rr_std_ms (float): Standard deviation of chunk receive intervals
+          (ms, receive interval stability).
+        process_cpu_percent_avg (float | None): Average CPU utilization of the
+          measurement process, if recorded.
+        process_rss_avg_bytes (float | None): Average resident set size of the
+          measurement process in bytes, if recorded.
+        system_cpu_percent_avg (float | None): Average CPU utilization across
+          all cores, if recorded.
+        system_cpu_percent_per_core_avg (tuple[float, ...]): Average CPU
+          utilization per core, if recorded.
     """
 
     p50_ms: float

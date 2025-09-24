@@ -63,6 +63,11 @@ def mock_compute_metrics():
             isi_p99_ms=1.2,
             rr_std_ms=0.5,
             sequence_discontinuities=1,
+            # Add resource usage attributes for CLI summary compatibility
+            process_cpu_percent_avg=None,
+            process_rss_avg_bytes=None,
+            system_cpu_percent_avg=None,
+            system_cpu_percent_per_core_avg=(),
         )
         mock.return_value = mock_summary
         yield mock

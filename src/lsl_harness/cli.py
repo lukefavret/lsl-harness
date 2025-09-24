@@ -89,21 +89,28 @@ def measure(
     inlet_worker = InletWorker(selector=(stream_key, stream_value), chunk=chunk_size)
     inlet_worker.start()
 
-    resource_monitor = ResourceMonitor()
+    try:
+        resource_monitor = ResourceMonitor()
+    except RuntimeError as e:
+        print(f"[yellow]Warning:[/] Resource monitoring is disabled ({e})")
+        resource_monitor = None
+
     end_time = time.time() + duration_seconds
     collected_samples: list[tuple] = []
 
     try:
         # Collect in small increments to avoid blocking and stay responsive.
         while time.time() < end_time:
-            resource_monitor.maybe_sample()
+            if resource_monitor is not None:
+                resource_monitor.maybe_sample()
             collected_samples.extend(inlet_worker.ring.drain_upto(16))
             time.sleep(0.01)
         # After the main collection, drain any remaining samples from the buffer.
         collected_samples.extend(inlet_worker.ring.drain_upto(1_000_000))
     finally:
         inlet_worker.stop()
-        resource_monitor.finalize()
+        if resource_monitor is not None:
+            resource_monitor.finalize()
 
     # Use 'with' to manage both file handles safely
     with (
@@ -129,17 +136,24 @@ def measure(
                 latency_writer.writerow([latency_ms])
                 times_writer.writerow([src_timestamp, receive_timestamp])
 
+
     summary = compute_metrics(
         collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops
     )
-    resource_usage = resource_monitor.snapshot()
+    resource_usage = (
+        resource_monitor.snapshot() if resource_monitor is not None else None
+    )
+    # Merge summary fields and resource usage into a single dictionary
+    summary_dict = dict(summary.__dict__)
     if resource_usage is not None:
-        summary.process_cpu_percent_avg = resource_usage.process_cpu_percent_avg
-        summary.process_rss_avg_bytes = resource_usage.process_rss_avg_bytes
-        summary.system_cpu_percent_avg = resource_usage.system_cpu_percent_avg
-        summary.system_cpu_percent_per_core_avg = (
-            resource_usage.system_cpu_percent_per_core_avg
-        )
+        summary_dict.update({
+            "process_cpu_percent_avg": resource_usage.process_cpu_percent_avg,
+            "process_rss_avg_bytes": resource_usage.process_rss_avg_bytes,
+            "system_cpu_percent_avg": resource_usage.system_cpu_percent_avg,
+            "system_cpu_percent_per_core_avg": (
+                resource_usage.system_cpu_percent_per_core_avg
+            ),
+        })
     metadata = {
         "environment": {
             "python": sys.version.split()[0],
@@ -155,7 +169,7 @@ def measure(
     }
 
     with open(output_directory / "summary.json", "w") as summary_file:
-        json.dump({**summary.__dict__, **metadata}, summary_file, indent=2)
+        json.dump({**summary_dict, **metadata}, summary_file, indent=2)
 
     # Optionally print a concise summary table of key metrics
     if print_summary:
