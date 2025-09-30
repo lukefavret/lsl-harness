@@ -107,14 +107,15 @@ class InletWorker:
 
         # Handle the inlet first to avoid blocking issues.
         if self.inlet:
+            # pylsl.StreamInlet usually needs no explicit close; drop reference.
             try:
-                self.inlet.close()
+                if hasattr(self.inlet, "close"):
+                    self.inlet.close()  # type: ignore[attr-defined]
             except Exception as e:
                 warnings.warn(
                     f"Exception occurred while closing inlet: {e}", stacklevel=2
                 )
             finally:
-                # Ensure the reference is always cleared.
                 self.inlet = None
 
         # Handle the thread second.
@@ -123,10 +124,10 @@ class InletWorker:
             if self._thread.is_alive():
                 warnings.warn(
                     (
-                        f"InletWorker thread did not stop gracefully within the timeout "
-                        f"({self._JOIN_TIMEOUT} seconds). "
-                        "Python does not support forceful termination of threads; "
-                        "resources may not be fully cleaned up. Restart the process if necessary."
+                        "InletWorker thread did not stop gracefully within the "
+                        f"timeout ({self._JOIN_TIMEOUT} seconds). Python does not "
+                        "support forceful termination of threads; resources may not "
+                        "be fully cleaned up. Restart the process if necessary."
                     ),
                     stacklevel=2,
                 )
