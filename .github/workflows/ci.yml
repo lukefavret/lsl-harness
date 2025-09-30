@@ -6,13 +6,21 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  LIBLSL_VERSION: 1.16.2
+  RESULTS_DIR: results/ci_synthetic_run
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -36,22 +44,10 @@ jobs:
       - name: Sync deps (if pyproject exists)
         run: |
           if [ -f pyproject.toml ]; then
-            uv sync
+            uv sync --frozen
           else
             echo "No pyproject.toml; skipping sync"
           fi
-      
-      - name: Install liblsl
-        run: |
-          set -euo pipefail
-          LIBLSL_VERSION=1.16.2
-          DEB="liblsl-${LIBLSL_VERSION}-jammy_amd64.deb"
-          URL="https://github.com/sccn/liblsl/releases/download/v${LIBLSL_VERSION}/${DEB}"
-          curl -fsSL -o "${DEB}" "${URL}"
-          # TODO: Replace the placeholder checksum below with the official sha256 once verified locally.
-          # echo "<sha256sum_here>  ${DEB}" | sha256sum -c -
-          sudo dpkg -i "${DEB}" || sudo apt-get -f install -y
-          python -c "import sys, pylsl; print('pylsl lib path:', pylsl.lib.__file__)"
 
       - name: Import check
         run: uv run python -c "import lsl_harness; print('import ok')"
@@ -59,14 +55,62 @@ jobs:
       - name: CLI help (module entry)
         run: uv run python -m lsl_harness.cli --help
 
+      - name: CLI help (console script)
+        run: uv run lsl-harness --help
+
       - name: Run tests
         run: uv run pytest
+  
+  integration: 
+    runs-on: ubuntu-latest
+    needs: smoke
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Cache uv virtualenv
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
+      - name: Sync deps (if pyproject exists)
+        run: |
+          if [ -f pyproject.toml ]; then
+            uv sync --frozen
+          else
+            echo "No pyproject.toml; skipping sync"
+          fi
+      
+      - name: Install liblsl
+        run: |
+          set -euo pipefail
+          DEB="liblsl-${LIBLSL_VERSION}-jammy_amd64.deb"
+          URL="https://github.com/sccn/liblsl/releases/download/v${LIBLSL_VERSION}/${DEB}"
+          curl -fsSLo "${DEB}" "${URL}"
+          # TODO: Replace the placeholder checksum below with the official sha256 once verified locally.
+          # echo "<sha256sum_here>  ${DEB}" | sha256sum -c -
+          sudo apt-get update
+          sudo apt-get install -y "./${DEB}"
+
+      - name: Verify pylsl
+        run: uv run python -c "import pylsl, sys; print('pylsl lib path:', pylsl.lib.__file__)"
 
       - name: Capture synthetic stream measurement
         run: |
           set -euo pipefail
 
-          RESULTS_DIR="results/ci_synthetic_run"
           MEASUREMENT_DURATION_SECONDS=5
           OUTLET_STARTUP_TIMEOUT=15
           rm -rf "${RESULTS_DIR}"
@@ -93,6 +137,8 @@ jobs:
           done
           if [ "${started}" -ne 1 ]; then
             echo "Outlet failed to start within ${OUTLET_STARTUP_TIMEOUT}s" >&2
+            echo "--- Outlet log (tail) ---" >&2
+            tail -n 100 "${RESULTS_DIR}/outlet.log" || true
             exit 1
           fi
 
@@ -107,4 +153,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: synthetic-measurement
-          path: results/ci_synthetic_run
+          path: ${RESULTS_DIR}
