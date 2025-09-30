@@ -26,15 +26,7 @@ jobs:
           # TODO: Replace the placeholder checksum below with the official sha256 once verified locally.
           # echo "<sha256sum_here>  ${DEB}" | sha256sum -c -
           sudo dpkg -i "${DEB}" || sudo apt-get -f install -y
-          python - <<'PY'
-import importlib, sys
-try:
-    import pylsl
-    print('pylsl lib path:', pylsl.lib.__file__)
-except Exception as e:
-    print('Failed to import pylsl:', e, file=sys.stderr)
-    sys.exit(1)
-PY
+          python -c "import sys, pylsl; print('pylsl lib path:', pylsl.lib.__file__)"
 
       - uses: actions/setup-python@v5
         with:
