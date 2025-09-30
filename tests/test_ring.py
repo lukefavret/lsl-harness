@@ -1,7 +1,18 @@
-import pytest
-from lsl_harness.ring import Ring
+"""Tests for the `Ring` buffer implementation.
+
+This module validates core ring buffer behaviors: initialization, push semantics
+with and without overwriting, draining under empty/partial/full states, thread
+interaction safety, and correct accounting of dropped samples under both
+`drop_oldest` policies. Each test focuses on a single aspect of the contract to
+keep failures precise.
+"""
+
 import threading
 import time
+
+import pytest
+
+from lsl_harness.ring import Ring
 
 
 def test_ring_init():
