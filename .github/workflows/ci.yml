@@ -35,3 +35,44 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+      - name: Capture synthetic stream measurement
+        run: |
+          set -euo pipefail
+
+          RESULTS_DIR="results/ci_synthetic_run"
+          rm -rf "${RESULTS_DIR}"
+          mkdir -p "${RESULTS_DIR}"
+
+          uv run synthetic-outlet >"${RESULTS_DIR}/outlet.log" 2>&1 &
+          OUTLET_PID=$!
+
+          cleanup() {
+            if kill -0 "${OUTLET_PID}" 2>/dev/null; then
+              kill "${OUTLET_PID}" || true
+              wait "${OUTLET_PID}" || true
+            fi
+          }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 15); do
+            if grep -q "Now streaming data" "${RESULTS_DIR}/outlet.log" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          uv run lsl-harness measure \
+            --duration-seconds 5 \
+            --output-directory "${RESULTS_DIR}" \
+            --no-summary
+
+          uv run lsl-harness report "${RESULTS_DIR}"
+
+          cleanup
+
+      - name: Upload synthetic artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-measurement
+          path: results/ci_synthetic_run
