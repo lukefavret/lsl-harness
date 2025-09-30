@@ -103,9 +103,20 @@ jobs:
           # echo "<sha256sum_here>  ${DEB}" | sha256sum -c -
           sudo apt-get update
           sudo apt-get install -y "./${DEB}"
-
       - name: Verify pylsl
-        run: uv run python -c "import pylsl, sys; print('pylsl lib path:', pylsl.lib.__file__)"
+        run: |
+          uv run python - <<'PY'
+          import pylsl, sys
+          print('pylsl imported OK')
+          print('pylsl version:', getattr(pylsl, '__version__', 'unknown'))
+          for attr in ('library_version', 'protocol_version'):
+            if hasattr(pylsl, attr):
+              try:
+                print(f"{attr}():", getattr(pylsl, attr)())
+              except Exception as e:
+                print(f"{attr}() error: {e}", file=sys.stderr)
+          print('Available symbols (subset):', [s for s in dir(pylsl) if s.startswith('Stream') or s in ('resolve_streams','local_clock')])
+          PY
 
       - name: Capture synthetic stream measurement
         run: |
