@@ -30,7 +30,9 @@ def create_lsl_outlet(
     # Buffer up to 10 seconds of data
     outlet = StreamOutlet(info, max_buffered=int(sample_rate * 10))
     print(
-        f"Created LSL outlet '{name}' with {num_channels} channels at {sample_rate} Hz."
+        f"Created LSL outlet '{name}' with {num_channels} channels at "
+        f"{sample_rate} Hz.",
+        flush=True,
     )
     return outlet
 
@@ -144,7 +146,7 @@ def run_synthetic_outlet(
                     pass
                 return
 
-    print("Now streaming data...")
+    print("Now streaming data...", flush=True)
 
     # --- Prime the pump: Generate and push the very first chunk immediately ---
     chunk, phase = generate_sine_chunk(
