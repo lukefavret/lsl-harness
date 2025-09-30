@@ -1,7 +1,7 @@
 """Manages LSL stream data acquisition in a background thread.
 
-This module provides the InletWorker class for acquiring LSL stream data in a background thread and
-storing it in a ring buffer.
+This module provides the InletWorker class for acquiring LSL stream data in a background
+thread and storing it in a ring buffer.
 """
 
 import threading
@@ -61,10 +61,10 @@ class InletWorker:
         """
         key, val = self.selector
         try:
-            # Preferred: supports timeout in pylsl 1.16.x
+            # Use resolve_byprop with timeout (available in pylsl >=1.16.x)
             streams = resolve_byprop(key, val, timeout=5)
         except TypeError:
-            # Fallback for older bindings: no timeout kwarg supported
+            # Fallback for pylsl <1.16.x: resolve_stream does not support timeout kwarg
             streams = resolve_stream(key, val)
         if not streams:
             raise RuntimeError(f"No LSL stream matching {key}=={val}")
@@ -85,7 +85,8 @@ class InletWorker:
             if ts:
                 recv = (
                     local_clock()
-                )  # one receive timestamp per chunk (documented approx)
+                )  # Per pylsl docs: use a single (approximate) receive timestamp 
+                   # for the whole chunk
                 self.ring.push(
                     (
                         np.array(data, dtype=np.float32),
