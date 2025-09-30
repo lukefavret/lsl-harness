@@ -13,6 +13,7 @@ import platform
 import sys
 import time
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich import print
@@ -233,19 +234,39 @@ def measure(
 
 @app.command()
 def report(
-    run: Path | None = None,
+    run: Annotated[
+        Path | None,
+        typer.Option(
+            "--run",
+            help=(
+                "Results directory containing summary.json (option). If omitted, "
+                "fallback to 'results/run_001' if it exists; otherwise prompt (TTY)."
+            ),
+        ),
+    ] = None,
 ):
-    """Render an HTML report from measurement artifacts in a results directory."""
+    """Render an HTML report from measurement artifacts.
+
+    If --run is not provided: use 'results/run_001' if present; otherwise prompt
+    (only when running interactively with a TTY).
+    """
     from .report import render_html_report
 
-    if run is None:
-        run = typer.prompt(
-            "Enter the results directory containing summary.json",
-            type=Path,
-        )
-    if not isinstance(run, Path):
-        raise typer.BadParameter("The results directory must be a valid Path.")
-    render_html_report(run)
+    selected = run
+    if selected is None:
+        default_path = Path("results/run_001")
+        if default_path.exists():
+            selected = default_path
+        elif sys.stdin.isatty():  # pragma: no cover
+            selected = typer.prompt(
+                "Enter the results directory containing summary.json",
+                type=Path,
+            )
+        else:
+            raise typer.BadParameter(
+                "No --run provided and default 'results/run_001' not found"
+            )
+    render_html_report(selected)
 
 
 if __name__ == "__main__":
