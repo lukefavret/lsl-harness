@@ -16,18 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install liblsl
-        run: |
-          set -euo pipefail
-          LIBLSL_VERSION=1.16.2
-          DEB="liblsl-${LIBLSL_VERSION}-jammy_amd64.deb"
-          URL="https://github.com/sccn/liblsl/releases/download/v${LIBLSL_VERSION}/${DEB}"
-          curl -fsSL -o "${DEB}" "${URL}"
-          # TODO: Replace the placeholder checksum below with the official sha256 once verified locally.
-          # echo "<sha256sum_here>  ${DEB}" | sha256sum -c -
-          sudo dpkg -i "${DEB}" || sudo apt-get -f install -y
-          python -c "import sys, pylsl; print('pylsl lib path:', pylsl.lib.__file__)"
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -52,6 +40,18 @@ jobs:
           else
             echo "No pyproject.toml; skipping sync"
           fi
+      
+      - name: Install liblsl
+        run: |
+          set -euo pipefail
+          LIBLSL_VERSION=1.16.2
+          DEB="liblsl-${LIBLSL_VERSION}-jammy_amd64.deb"
+          URL="https://github.com/sccn/liblsl/releases/download/v${LIBLSL_VERSION}/${DEB}"
+          curl -fsSL -o "${DEB}" "${URL}"
+          # TODO: Replace the placeholder checksum below with the official sha256 once verified locally.
+          # echo "<sha256sum_here>  ${DEB}" | sha256sum -c -
+          sudo dpkg -i "${DEB}" || sudo apt-get -f install -y
+          python -c "import sys, pylsl; print('pylsl lib path:', pylsl.lib.__file__)"
 
       - name: Import check
         run: uv run python -c "import lsl_harness; print('import ok')"
