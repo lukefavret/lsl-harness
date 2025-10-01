@@ -214,7 +214,7 @@ jobs:
         run: |
           echo "### � Measurement Summary" >> "$GITHUB_STEP_SUMMARY"
           if [ -f "${RESULTS_DIR}/summary.json" ]; then
-            echo '\n**Key Metrics:**' >> "$GITHUB_STEP_SUMMARY"
+            echo '**Key Metrics:**' >> "$GITHUB_STEP_SUMMARY"
             jq -r '
               "- Latency (p50): \(.p50_ms) ms",
               "- Latency (p95): \(.p95_ms) ms",
