@@ -1,46 +1,90 @@
 <!doctype html>
-<meta charset="utf-8">
-<title>LSL Harness Report</title>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSL Harness Report</title>
     <style>
+        :root {
+            color-scheme: light dark;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #1f2933;
             max-width: 960px;
             margin: 2rem auto;
             padding: 0 1rem;
-            background-color: #f4f4f4;
+            background-color: #f4f7fb;
+        }
+        a.skip-link {
+            position: absolute;
+            left: -999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+        a.skip-link:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            padding: 0.75rem 1rem;
+            background-color: #0f4871;
+            color: #ffffff;
+            border-radius: 0.5rem;
+            outline: 2px solid #0f4871;
         }
         h1, h2 {
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+            color: #102a43;
+            border-bottom: 3px solid #0f4871;
+            padding-bottom: 0.5rem;
         }
         .container {
             background-color: #ffffff;
             padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 10px rgba(15, 72, 113, 0.15);
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 2rem;
         }
-        th, td {
-            padding: 12px;
+        caption {
+            font-weight: 600;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 0.5rem;
         }
-        th {
-            background-color: #3498db;
-            color: white;
+        thead th {
+            background-color: #0f4871;
+            color: #ffffff;
         }
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
+        tbody th[scope="row"] {
+            text-align: left;
+            background-color: #d9e6f2;
+            color: #102a43;
         }
-        tr:hover {
-            background-color: #e8f4fd;
+        tbody th[scope="rowgroup"] {
+            background-color: #0f4871;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.95rem;
+            text-align: left;
+            border-top: 4px solid #082d47;
+            border-bottom: 2px solid #082d47;
+        }
+        th, td {
+            padding: 0.75rem;
+            border: 1px solid #cbd2d9;
+            vertical-align: top;
+        }
+        tr:nth-child(even) td {
+            background-color: #f1f5f9;
+        }
+        tr:hover td {
+            background-color: #e3eef9;
         }
         .plots {
             display: flex;
@@ -52,120 +96,224 @@
         .plots figure {
             margin: 0;
             text-align: center;
+            max-width: 600px;
+            flex: 1 1 300px;
         }
         .plots img {
             max-width: 100%;
             height: auto;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(15, 72, 113, 0.2);
         }
         details {
             margin-top: 2rem;
-            background-color: #ecf0f1;
+            background-color: #e1ecf4;
             padding: 1rem;
-            border-radius: 4px;
+            border-radius: 0.5rem;
+        }
+        details > summary {
+            cursor: pointer;
+            font-weight: 600;
+        }
+        details:focus-within {
+            outline: 2px solid #0f4871;
+            outline-offset: 4px;
         }
         pre {
-            background-color: #34495e;
-            color: #ecf0f1;
+            background-color: #102a43;
+            color: #f0f4f8;
             padding: 1rem;
-            border-radius: 4px;
+            border-radius: 0.5rem;
             white-space: pre-wrap;
-            word-wrap: break-word;
+            word-break: break-word;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="container" id="main-content">
         <h1>LSL Harness Report</h1>
 
-<h2>Metrics Summary</h2>
-<table border="1" cellspacing="0" cellpadding="4">
-  <tr><th colspan="2">Latency</th></tr>
-  <tr><td>p50</td><td>{{ p50_ms | round(2) }} ms</td></tr>
-  <tr><td>p95</td><td>{{ p95_ms | round(2) }} ms</td></tr>
-  <tr><td>p99</td><td>{{ p99_ms | round(2) }} ms</td></tr>
-  <tr><td>Max</td><td>{{ max_latency_ms | round(2) }} ms</td></tr>
+        <h2>Metrics Summary</h2>
+        <table>
+            <caption>Key latency, performance, and environment metrics</caption>
+            <tbody>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Latency</th>
+                </tr>
+                <tr>
+                    <th scope="row">p50</th>
+                    <td>{{ p50_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">p95</th>
+                    <td>{{ p95_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">p99</th>
+                    <td>{{ p99_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">Max</th>
+                    <td>{{ max_latency_ms | round(2) }} ms</td>
+                </tr>
 
-  <tr><th colspan="2">Variability</th></tr>
-  <tr><td>Jitter (p95-p50)</td><td>{{ jitter_ms | round(2) }} ms</td></tr>
-  <tr><td>Jitter std</td><td>{{ jitter_std | round(2) }} ms</td></tr>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Variability</th>
+                </tr>
+                <tr>
+                    <th scope="row">Jitter (p95-p50)</th>
+                    <td>{{ jitter_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">Jitter std</th>
+                    <td>{{ jitter_std | round(2) }} ms</td>
+                </tr>
 
-  <tr><th colspan="2">Rate & Loss</th></tr>
-  <tr><td>Effective Hz</td><td>{{ effective_sample_rate_hz | round(2) }}</td></tr>
-  <tr><td>Drop estimate</td><td>{{ drops_percentage | round(2) }} %</td></tr>
-  <tr><td>Total samples</td><td>{{ total_sample_count }}</td></tr>
-  <tr><td>Ring drops</td><td>{{ ring_drops }}</td></tr>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Rate &amp; Loss</th>
+                </tr>
+                <tr>
+                    <th scope="row">Effective Hz</th>
+                    <td>{{ effective_sample_rate_hz | round(2) }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Drop estimate</th>
+                    <td>{{ drops_percentage | round(2) }} %</td>
+                </tr>
+                <tr>
+                    <th scope="row">Total samples</th>
+                    <td>{{ total_sample_count }}</td>
+                </tr>
+                <tr>
+                    <th scope="row">Ring drops</th>
+                    <td>{{ ring_drops }}</td>
+                </tr>
 
-    <tr><th colspan="2">Resource Usage</th></tr>
-    {% if process_cpu_percent_avg is not none %}
-    <tr><td>Process CPU (avg)</td><td>{{ process_cpu_percent_avg | round(2) }} %</td></tr>
-    {% endif %}
-    {% if system_cpu_percent_avg is not none %}
-    <tr><td>System CPU (avg)</td><td>{{ system_cpu_percent_avg | round(2) }} %</td></tr>
-    {% endif %}
-    {% if process_rss_avg_bytes is not none %}
-    <tr><td>Process RSS (avg)</td><td>{{ (process_rss_avg_bytes / (1024 * 1024)) | round(2) }} MiB</td></tr>
-    {% endif %}
-    {% if system_cpu_percent_per_core_avg %}
-    <tr>
-        <td>System CPU / core</td>
-        <td>
-            {% for value in system_cpu_percent_per_core_avg %}
-                core {{ loop.index0 }}: {{ value | round(2) }} %{% if not loop.last %}<br>{% endif %}
-            {% endfor %}
-        </td>
-    </tr>
-    {% endif %}
+                <tr>
+                    <th scope="rowgroup" colspan="2">Resource Usage</th>
+                </tr>
+                {% if process_cpu_percent_avg is not none %}
+                <tr>
+                    <th scope="row">Process CPU (avg)</th>
+                    <td>{{ process_cpu_percent_avg | round(2) }} %</td>
+                </tr>
+                {% endif %}
+                {% if system_cpu_percent_avg is not none %}
+                <tr>
+                    <th scope="row">System CPU (avg)</th>
+                    <td>{{ system_cpu_percent_avg | round(2) }} %</td>
+                </tr>
+                {% endif %}
+                {% if process_rss_avg_bytes is not none %}
+                <tr>
+                    <th scope="row">Process RSS (avg)</th>
+                    <td>{{ (process_rss_avg_bytes / (1024 * 1024)) | round(2) }} MiB</td>
+                </tr>
+                {% endif %}
+                {% if system_cpu_percent_per_core_avg %}
+                <tr>
+                    <th scope="row">System CPU / core</th>
+                    <td>
+                        {% for value in system_cpu_percent_per_core_avg %}
+                            core {{ loop.index0 }}: {{ value | round(2) }} %{% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endif %}
 
-  <tr><th colspan="2">Source Timing (ISI)</th></tr>
-  <tr><td>ISI mean</td><td>{{ isi_mean_ms | round(2) }} ms</td></tr>
-  <tr><td>ISI std</td><td>{{ isi_std_ms | round(2) }} ms</td></tr>
-  <tr><td>ISI p50</td><td>{{ isi_p50_ms | round(2) }} ms</td></tr>
-  <tr><td>ISI p95</td><td>{{ isi_p95_ms | round(2) }} ms</td></tr>
-  <tr><td>ISI p99</td><td>{{ isi_p99_ms | round(2) }} ms</td></tr>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Source Timing (ISI)</th>
+                </tr>
+                <tr>
+                    <th scope="row">ISI mean</th>
+                    <td>{{ isi_mean_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI std</th>
+                    <td>{{ isi_std_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI p50</th>
+                    <td>{{ isi_p50_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI p95</th>
+                    <td>{{ isi_p95_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI p99</th>
+                    <td>{{ isi_p99_ms | round(2) }} ms</td>
+                </tr>
 
-  <tr><th colspan="2">Receive Intervals (R-R)</th></tr>
-  <tr><td>R-R mean</td><td>{{ rr_mean_ms | round(2) }} ms</td></tr>
-  <tr><td>R-R std</td><td>{{ rr_std_ms | round(2) }} ms</td></tr>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Receive Intervals (R-R)</th>
+                </tr>
+                <tr>
+                    <th scope="row">R-R mean</th>
+                    <td>{{ rr_mean_ms | round(2) }} ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">R-R std</th>
+                    <td>{{ rr_std_ms | round(2) }} ms</td>
+                </tr>
 
-  <tr><th colspan="2">Clock</th></tr>
-  <tr><td>Drift</td><td>{{ drift_ms_per_min | round(2) }} ms/min</td></tr>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Clock</th>
+                </tr>
+                <tr>
+                    <th scope="row">Drift</th>
+                    <td>{{ drift_ms_per_min | round(2) }} ms/min</td>
+                </tr>
 
-  <tr><th colspan="2">Sequence</th></tr>
-  <tr><td>Discontinuities</td><td>{{ sequence_discontinuities }}</td></tr>
-</table>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Sequence</th>
+                </tr>
+                <tr>
+                    <th scope="row">Discontinuities</th>
+                    <td>{{ sequence_discontinuities }}</td>
+                </tr>
+            </tbody>
+        </table>
 
-<h2>Plots</h2>
-<div>
-  <figure>
-    <img src="latency_hist.png" alt="Latency histogram" style="max-width: 600px; width: 100%; height: auto;">
-    <figcaption>Latency histogram (ms)</figcaption>
-  </figure>
-  {% if drift_plot %}
-  <figure>
-    <img src="drift_plot.png" alt="Offset vs Time (drift)" style="max-width: 600px; width: 100%; height: auto;">
-    <figcaption>Offset vs Time (drift)</figcaption>
-  </figure>
-  {% endif %}
-  </div>
+        <h2>Plots</h2>
+        <div class="plots" role="group" aria-label="Run plots">
+            <figure>
+                <img src="latency_hist.png" alt="Latency histogram" loading="lazy">
+                <figcaption>Latency histogram (ms)</figcaption>
+            </figure>
+            {% if drift_plot %}
+            <figure>
+                <img src="drift_plot.png" alt="Offset vs Time (drift)" loading="lazy">
+                <figcaption>Offset vs Time (drift)</figcaption>
+            </figure>
+            {% endif %}
+        </div>
 
-<h2>Run Parameters</h2>
-<ul>
-  <li>Selector: {{ parameters.selector.key }}={{ parameters.selector.value }}</li>
-  <li>Duration (s): {{ parameters.duration_seconds }}</li>
-  <li>Chunk size: {{ parameters.chunk_size }}</li>
-  <li>Nominal sample rate (Hz): {{ parameters.nominal_sample_rate }}</li>
-  <li>Python: {{ environment.python }}</li>
-  <li>Platform: {{ environment.platform }}</li>
-  <li>pylsl: {{ environment.pylsl_version }}</li>
-  </ul>
+        <h2>Run Parameters</h2>
+        <ul>
+            <li>Selector: {{ parameters.selector.key }}={{ parameters.selector.value }}</li>
+            <li>Duration (s): {{ parameters.duration_seconds }}</li>
+            <li>Chunk size: {{ parameters.chunk_size }}</li>
+            <li>Nominal sample rate (Hz): {{ parameters.nominal_sample_rate }}</li>
+            <li>Python: {{ environment.python }}</li>
+            <li>Platform: {{ environment.platform }}</li>
+            <li>pylsl: {{ environment.pylsl_version }}</li>
+        </ul>
 
-<details>
-  <summary>Raw environment JSON</summary>
-  <pre>{{ environment|tojson(indent=2) }}</pre>
-  <pre>{{ parameters|tojson(indent=2) }}</pre>
-</details>
+        <details>
+            <summary>Raw environment JSON</summary>
+            <pre>{{ environment|tojson(indent=2) }}</pre>
+            <pre>{{ parameters|tojson(indent=2) }}</pre>
+        </details>
     </div>
 </body>
 </html>
