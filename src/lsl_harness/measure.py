@@ -96,10 +96,11 @@ class InletWorker:
                 )
 
     def stop(self):
-        """Signal the background thread to stop, wait for it to exit, and close the inlet.
+        """Signal the background thread to stop, wait for it to exit, and close inlet.
 
-        This method sets the stop event, waits for the thread to exit, closes the LSL inlet,
-        and may issue warnings if the thread does not stop gracefully or if closing the inlet fails.
+        This method sets the stop event, waits for the thread to exit,
+        closes the LSL inlet, and may issue warnings if the thread does not
+        stop gracefully or if closing the inlet fails.
         """
         if self._stop.is_set():
             return
