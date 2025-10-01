@@ -1,4 +1,4 @@
-name: ci-lite
+name: lsl-harness-ci
 
 on:
   pull_request:
@@ -207,7 +207,7 @@ jobs:
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
-          name: my-report
+          name: html-report
           path: ${{ env.RESULTS_DIR }}/report.html
 
       - name: List results dir
@@ -234,4 +234,3 @@ jobs:
           else
             echo 'No summary.json found.' >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo '[Download HTML report](https://github.com/${{ github.repository }}/suites/${{ github.run_id }}/artifacts)' >> "$GITHUB_STEP_SUMMARY"
