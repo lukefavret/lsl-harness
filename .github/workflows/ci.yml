@@ -208,7 +208,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: my-report
-          path: ${{ env.RESULTS_DIR }}/report.html
+          path: ${RESULTS_DIR}/report.html
 
       - name: List results dir
         run: ls -lR "${RESULTS_DIR}" || echo "No results dir"
