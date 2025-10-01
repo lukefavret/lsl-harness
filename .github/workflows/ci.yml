@@ -131,7 +131,7 @@ jobs:
             echo "No pyproject.toml; skipping sync"
           fi
       
-      - name: Install liblsl
+      - name: Install libLSL
         run: |
           set -euo pipefail
           DEB="liblsl-${LIBLSL_VERSION}-jammy_amd64.deb"
@@ -210,9 +210,12 @@ jobs:
           name: my-report
           path: ${{ env.RESULTS_DIR }}/report.html
 
+      - name: List results dir
+        run: ls -lR "${RESULTS_DIR}" || echo "No results dir"
+
       - name: Write summary
         run: |
-          echo "### � Measurement Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📋 Measurement Summary" >> "$GITHUB_STEP_SUMMARY"
           if [ -f "${RESULTS_DIR}/summary.json" ]; then
             echo '**Key Metrics:**' >> "$GITHUB_STEP_SUMMARY"
             jq -r '
@@ -231,4 +234,4 @@ jobs:
           else
             echo 'No summary.json found.' >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo '\n[Download HTML report](https://github.com/${{ github.repository }}/suites/${{ github.run_id }}/artifacts)' >> "$GITHUB_STEP_SUMMARY"
+          echo '[Download HTML report](https://github.com/${{ github.repository }}/suites/${{ github.run_id }}/artifacts)' >> "$GITHUB_STEP_SUMMARY"
