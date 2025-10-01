@@ -18,6 +18,42 @@ env:
   RESULTS_DIR: results/ci_synthetic_run
 
 jobs:
+  lint:
+      runs-on: ubuntu-latest
+      timeout-minutes: 5
+      steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-python@v5
+          with:
+            python-version: "3.11"
+
+        - name: Install uv
+          run: python -m pip install --upgrade pip uv
+
+        - name: Cache uv virtualenv
+          uses: actions/cache@v4
+          with:
+            path: |
+              .venv
+              ~/.cache/uv
+            key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+            restore-keys: |
+              uv-${{ runner.os }}-
+
+        - name: Sync deps (if pyproject exists)
+          run: |
+            if [ -f pyproject.toml ]; then
+              uv sync --frozen
+            else
+              echo "No pyproject.toml; skipping sync"
+            fi
+
+        - name: Ruff check
+          run: uv run ruff check
+
+        - name: Ruff format --check
+          run: uv run ruff format --check
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -61,42 +97,7 @@ jobs:
       - name: Run tests
         run: uv run pytest
   
-    lint:
-      runs-on: ubuntu-latest
-      timeout-minutes: 5
-      steps:
-        - uses: actions/checkout@v4
-
-        - uses: actions/setup-python@v5
-          with:
-            python-version: "3.11"
-
-        - name: Install uv
-          run: python -m pip install --upgrade pip uv
-
-        - name: Cache uv virtualenv
-          uses: actions/cache@v4
-          with:
-            path: |
-              .venv
-              ~/.cache/uv
-            key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-            restore-keys: |
-              uv-${{ runner.os }}-
-
-        - name: Sync deps (if pyproject exists)
-          run: |
-            if [ -f pyproject.toml ]; then
-              uv sync --frozen
-            else
-              echo "No pyproject.toml; skipping sync"
-            fi
-
-        - name: Ruff check
-          run: uv run ruff check
-
-        - name: Ruff format --check
-          run: uv run ruff format --check
+    
 
   integration: 
     runs-on: ubuntu-latest
