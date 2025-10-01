@@ -60,10 +60,20 @@
             background-color: #0f4871;
             color: #ffffff;
         }
-        tbody th {
+        tbody th[scope="row"] {
             text-align: left;
             background-color: #d9e6f2;
             color: #102a43;
+        }
+        tbody th[scope="rowgroup"] {
+            background-color: #0f4871;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.95rem;
+            text-align: left;
+            border-top: 4px solid #082d47;
+            border-bottom: 2px solid #082d47;
         }
         th, td {
             padding: 0.75rem;
