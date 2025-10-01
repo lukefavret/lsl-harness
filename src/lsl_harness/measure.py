@@ -85,8 +85,8 @@ class InletWorker:
             if ts:
                 recv = (
                     local_clock()
-                )  # Per pylsl docs: use a single (approximate) receive timestamp 
-                   # for the whole chunk
+                )  # Per pylsl docs: use a single (approximate) receive timestamp
+                # for the whole chunk
                 self.ring.push(
                     (
                         np.array(data, dtype=np.float32),
@@ -96,10 +96,11 @@ class InletWorker:
                 )
 
     def stop(self):
-        """Signal the background thread to stop, wait for it to exit, and close the inlet.
+        """Signal the background thread to stop, wait for it to exit, and close inlet.
 
-        This method sets the stop event, waits for the thread to exit, closes the LSL inlet,
-        and may issue warnings if the thread does not stop gracefully or if closing the inlet fails.
+        This method sets the stop event, waits for the thread to exit,
+        closes the LSL inlet, and may issue warnings if the thread does not
+        stop gracefully or if closing the inlet fails.
         """
         if self._stop.is_set():
             return
@@ -107,14 +108,15 @@ class InletWorker:
 
         # Handle the inlet first to avoid blocking issues.
         if self.inlet:
+            # pylsl.StreamInlet usually needs no explicit close; drop reference.
             try:
-                self.inlet.close()
+                if hasattr(self.inlet, "close"):
+                    self.inlet.close()  # type: ignore[attr-defined]
             except Exception as e:
                 warnings.warn(
                     f"Exception occurred while closing inlet: {e}", stacklevel=2
                 )
             finally:
-                # Ensure the reference is always cleared.
                 self.inlet = None
 
         # Handle the thread second.
@@ -123,10 +125,10 @@ class InletWorker:
             if self._thread.is_alive():
                 warnings.warn(
                     (
-                        f"InletWorker thread did not stop gracefully within the timeout "
-                        f"({self._JOIN_TIMEOUT} seconds). "
-                        "Python does not support forceful termination of threads; "
-                        "resources may not be fully cleaned up. Restart the process if necessary."
+                        "InletWorker thread did not stop gracefully within the "
+                        f"timeout ({self._JOIN_TIMEOUT} seconds). Python does not "
+                        "support forceful termination of threads; resources may not "
+                        "be fully cleaned up. Restart the process if necessary."
                     ),
                     stacklevel=2,
                 )
