@@ -1,5 +1,3 @@
-
-
 """Tools for measuring and reporting Lab Streaming Layer (LSL) stream performance.
 
 This package provides a CLI and utilities for collecting, analyzing, and reporting

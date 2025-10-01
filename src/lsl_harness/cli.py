@@ -137,7 +137,6 @@ def measure(
                 latency_writer.writerow([latency_ms])
                 times_writer.writerow([src_timestamp, receive_timestamp])
 
-
     summary = compute_metrics(
         collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops
     )
@@ -147,14 +146,16 @@ def measure(
     # Merge summary fields and resource usage into a single dictionary
     summary_dict = dict(summary.__dict__)
     if resource_usage is not None:
-        summary_dict.update({
-            "process_cpu_percent_avg": resource_usage.process_cpu_percent_avg,
-            "process_rss_avg_bytes": resource_usage.process_rss_avg_bytes,
-            "system_cpu_percent_avg": resource_usage.system_cpu_percent_avg,
-            "system_cpu_percent_per_core_avg": (
-                resource_usage.system_cpu_percent_per_core_avg
-            ),
-        })
+        summary_dict.update(
+            {
+                "process_cpu_percent_avg": resource_usage.process_cpu_percent_avg,
+                "process_rss_avg_bytes": resource_usage.process_rss_avg_bytes,
+                "system_cpu_percent_avg": resource_usage.system_cpu_percent_avg,
+                "system_cpu_percent_per_core_avg": (
+                    resource_usage.system_cpu_percent_per_core_avg
+                ),
+            }
+        )
     metadata = {
         "environment": {
             "python": sys.version.split()[0],

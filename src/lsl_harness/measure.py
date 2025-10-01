@@ -85,8 +85,8 @@ class InletWorker:
             if ts:
                 recv = (
                     local_clock()
-                )  # Per pylsl docs: use a single (approximate) receive timestamp 
-                   # for the whole chunk
+                )  # Per pylsl docs: use a single (approximate) receive timestamp
+                # for the whole chunk
                 self.ring.push(
                     (
                         np.array(data, dtype=np.float32),
