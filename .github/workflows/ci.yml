@@ -1,4 +1,4 @@
-name: ci-lite
+name: lsl-harness-ci
 
 on:
   pull_request:
@@ -131,7 +131,7 @@ jobs:
             echo "No pyproject.toml; skipping sync"
           fi
       
-      - name: Install liblsl
+      - name: Install libLSL
         run: |
           set -euo pipefail
           DEB="liblsl-${LIBLSL_VERSION}-jammy_amd64.deb"
@@ -202,15 +202,35 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: synthetic-measurement
-          path: ${RESULTS_DIR}
+          path: ${{ env.RESULTS_DIR }}
 
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
-          name: my-report
+          name: html-report
           path: ${{ env.RESULTS_DIR }}/report.html
+
+      - name: List results dir
+        run: ls -lR "${RESULTS_DIR}" || echo "No results dir"
 
       - name: Write summary
         run: |
-          echo "### 📄 Report" >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download report](https://github.com/${{ github.repository }}/suites/${{ github.run_id }}/artifacts)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📋 Measurement Summary" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "${RESULTS_DIR}/summary.json" ]; then
+            echo '**Key Metrics:**' >> "$GITHUB_STEP_SUMMARY"
+            jq -r '
+              "- Latency (p50): \(.p50_ms) ms",
+              "- Latency (p95): \(.p95_ms) ms",
+              "- Latency (p99): \(.p99_ms) ms",
+              "- Max latency: \(.max_latency_ms) ms",
+              "- Jitter: \(.jitter_ms) ms",
+              "- Jitter std: \(.jitter_std) ms",
+              "- Effective sample rate: \(.effective_sample_rate_hz) Hz",
+              "- Drift: \(.drift_ms_per_min) ms/min",
+              "- Drops: \(.drops_percentage)%",
+              "- Total samples: \(.total_sample_count)",
+              "- Ring drops: \(.ring_drops)"
+            ' "${RESULTS_DIR}/summary.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No summary.json found.' >> "$GITHUB_STEP_SUMMARY"
+          fi
