@@ -6,6 +6,7 @@ Validates measure/report flows, JSON output, and integration with mocked metrics
 import csv
 import json
 import sys
+import textwrap
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -148,6 +149,119 @@ def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics)
     assert json_output, "No JSON output found"
     summary_data = json.loads(json_output)
     assert summary_data["p50_ms"] == 10.0
+
+
+def test_measure_uses_settings_file(tmp_path, mock_inlet_worker, mock_compute_metrics):
+    """Ensure a settings file provides defaults for the measure command."""
+
+    output_dir = tmp_path / "settings_run"
+    settings_path = tmp_path / "settings.toml"
+    settings_path.write_text(
+        textwrap.dedent(
+            f"""
+            [measure]
+            stream_key = "name"
+            stream_value = "Config"
+            duration_seconds = 0.1
+            chunk_size = 16
+            nominal_sample_rate = 250.0
+            output_directory = "{output_dir.as_posix()}"
+            print_summary = false
+            json_summary = true
+            """
+        ).strip()
+    )
+
+    with patch("time.sleep"), patch("time.time") as mock_time:
+        mock_time.side_effect = [1000.0, 1000.05, 1000.11, 1000.2, 1000.31]
+        result = runner.invoke(
+            app,
+            ["measure", "--settings-file", str(settings_path)],
+        )
+
+    assert result.exit_code == 0
+    summary_data = json.loads((output_dir / "summary.json").read_text())
+    assert summary_data["parameters"]["selector"] == {"key": "name", "value": "Config"}
+    assert summary_data["parameters"]["duration_seconds"] == 0.1
+    assert summary_data["parameters"]["chunk_size"] == 16
+    assert summary_data["parameters"]["nominal_sample_rate"] == 250.0
+
+
+def test_measure_env_overrides_settings(tmp_path, mock_inlet_worker, mock_compute_metrics):
+    """Environment variables should override values from the settings file."""
+
+    settings_output = tmp_path / "settings_base"
+    settings_path = tmp_path / "settings.toml"
+    settings_path.write_text(
+        textwrap.dedent(
+            f"""
+            [measure]
+            duration_seconds = 0.1
+            output_directory = "{settings_output.as_posix()}"
+            """
+        ).strip()
+    )
+
+    env_output = tmp_path / "env_output"
+    env = {
+        "LSL_MEASURE_DURATION_SECONDS": "0.3",
+        "LSL_MEASURE_OUTPUT_DIRECTORY": str(env_output),
+    }
+
+    with patch("time.sleep"), patch("time.time") as mock_time:
+        mock_time.side_effect = [1000.0, 1000.05, 1000.11, 1000.2, 1000.35, 1000.51]
+        result = runner.invoke(
+            app,
+            ["measure", "--settings-file", str(settings_path)],
+            env=env,
+        )
+
+    assert result.exit_code == 0
+    summary_data = json.loads((env_output / "summary.json").read_text())
+    assert summary_data["parameters"]["duration_seconds"] == 0.3
+
+
+def test_measure_cli_overrides_env(tmp_path, mock_inlet_worker, mock_compute_metrics):
+    """CLI arguments should take precedence over environment variables."""
+
+    settings_path = tmp_path / "settings.toml"
+    settings_path.write_text("[measure]\nduration_seconds = 0.1\n")
+
+    env_output = tmp_path / "env_output"
+    cli_output = tmp_path / "cli_output"
+    env = {
+        "LSL_MEASURE_DURATION_SECONDS": "0.3",
+        "LSL_MEASURE_OUTPUT_DIRECTORY": str(env_output),
+    }
+
+    with patch("time.sleep"), patch("time.time") as mock_time:
+        mock_time.side_effect = [
+            1000.0,
+            1000.05,
+            1000.11,
+            1000.2,
+            1000.35,
+            1000.45,
+            1000.6,
+        ]
+        result = runner.invoke(
+            app,
+            [
+                "measure",
+                "--settings-file",
+                str(settings_path),
+                "--duration-seconds",
+                "0.5",
+                "--output-directory",
+                str(cli_output),
+            ],
+            env=env,
+        )
+
+    assert result.exit_code == 0
+    summary_data = json.loads((cli_output / "summary.json").read_text())
+    assert summary_data["parameters"]["duration_seconds"] == 0.5
+    assert summary_data["parameters"]["selector"] == {"key": "type", "value": "EEG"}
 
 
 def test_report_command(tmp_path):

@@ -1,15 +1,18 @@
-"""LSL stream measurement and reporting tool.
+"""Command-line utilities for measuring and reporting LSL stream performance.
 
-This script provides command-line utilities to measure and report on the performance
-of an LSL (Lab Streaming Layer) stream. It includes commands for collecting data
-over a specified duration, computing key metrics like latency and jitter, and
-generating a human-readable HTML report from the collected data.
+The ``lsl_harness`` CLI exposes subcommands that collect samples from Lab
+Streaming Layer (LSL) streams, compute summary statistics, and render reports.
+This module contains the Typer application wiring along with helpers for
+formatting output. Each public command describes how CLI arguments interact
+with environment variables and settings files so users can script workflows
+confidently.
 """
 
 import csv
 import importlib.metadata
 import json
 import platform
+import os
 import sys
 import time
 from pathlib import Path
@@ -21,6 +24,7 @@ from rich.table import Table
 
 from .metrics import compute_metrics
 from .resource_monitor import ResourceMonitor
+from .settings import MeasureSettings
 
 LATENCY_CSV_FILE = "latency.csv"
 LATENCY_CSV_HEADERS = ["latency_ms"]
@@ -33,61 +37,106 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 @app.command()
 def measure(
-    stream_key: str = typer.Option(
-        "type", help="LSL resolve key (e.g., 'name' or 'type')"
-    ),
-    stream_value: str = typer.Option("EEG", help="LSL resolve value"),
-    duration_seconds: float = 10.0,
-    chunk_size: int = 32,
-    nominal_sample_rate: float = 1000.0,
-    output_directory: Path = Path("results/run_001"),
-    print_summary: bool = typer.Option(
-        True,
-        "--summary/--no-summary",
-        help="Print brief metrics summary to the console.",
-    ),
-    verbose_summary: bool = typer.Option(
-        False,
-        "--verbose-summary/--no-verbose-summary",
-        help="Include extended metrics in the console summary.",
-    ),
-    json_summary: bool = typer.Option(
-        False,
-        "--json-summary/--no-json-summary",
-        help="Print metrics as a compact JSON object to stdout.",
-    ),
+    stream_key: Annotated[
+        str | None, typer.Option(help="LSL resolve key (e.g., 'name' or 'type')")
+    ] = None,
+    stream_value: Annotated[
+        str | None, typer.Option(help="LSL resolve value")
+    ] = None,
+    duration_seconds: Annotated[
+        float | None, typer.Option(help="Duration in seconds to collect samples.")
+    ] = None,
+    chunk_size: Annotated[
+        int | None,
+        typer.Option(help="Maximum number of samples to pull from the stream per chunk."),
+    ] = None,
+    nominal_sample_rate: Annotated[
+        float | None,
+        typer.Option(help="Nominal sample rate of the stream in Hz."),
+    ] = None,
+    output_directory: Annotated[
+        Path | None,
+        typer.Option(help="Directory where result files will be saved."),
+    ] = None,
+    print_summary: Annotated[
+        bool | None,
+        typer.Option(
+            "--summary/--no-summary",
+            help="Print brief metrics summary to the console.",
+        ),
+    ] = None,
+    verbose_summary: Annotated[
+        bool | None,
+        typer.Option(
+            "--verbose-summary/--no-verbose-summary",
+            help="Include extended metrics in the console summary.",
+        ),
+    ] = None,
+    json_summary: Annotated[
+        bool | None,
+        typer.Option(
+            "--json-summary/--no-json-summary",
+            help="Print metrics as a compact JSON object to stdout.",
+        ),
+    ] = None,
+    settings_file: Annotated[
+        Path | None,
+        typer.Option(
+            help=(
+                "Path to a TOML or JSON settings file. CLI arguments override"
+                " environment variables, which override file values."
+            )
+        ),
+    ] = None,
 ):
-    """Collect samples from an LSL stream and write JSON+CSV artifacts for reporting.
-
-    This command-line utility connects to an LSL stream, collects a specified
-    duration of data, and saves key metrics and raw data to files for
-    subsequent analysis and reporting.
+    """Collect samples from an LSL stream and write JSON/CSV artifacts.
 
     Args:
-        stream_key: The LSL resolve key (e.g., 'name', 'type').
-        stream_value: The LSL resolve value to match.
-        duration_seconds: The duration in seconds to collect samples.
-        chunk_size: The maximum number of samples to pull from the stream per chunk.
-        nominal_sample_rate: The nominal sample rate of the stream in Hz.
-        output_directory: The directory where result files will be saved.
-        It will be created if it does not exist.
-        print_summary: Whether to print a concise metrics table to the console
-          (default: True).
-        verbose_summary: Whether to include extended metrics in the table
-          (default: False).
-        json_summary: Whether to print the metrics as compact JSON to stdout
-          (default: False).
+        stream_key: Optional LSL resolve key (for example ``"type"``).
+        stream_value: Optional resolve value paired with ``stream_key``.
+        duration_seconds: Duration in seconds to collect samples; ``None``
+            defers to configuration precedence.
+        chunk_size: Maximum number of samples to pull per chunk.
+        nominal_sample_rate: Expected sample rate for the stream in hertz.
+        output_directory: Directory where result files are written.
+        print_summary: Whether to print a concise summary table to the console.
+        verbose_summary: Whether to include extended metrics in the summary.
+        json_summary: Whether to emit a compact JSON metrics blob to stdout.
+        settings_file: Explicit TOML or JSON settings file path.
 
-    Side Effects:
-        - Writes `latency.csv`, `times.csv`, and `summary.json` to the output directory.
-        - Prints a completion message to the console.
-        - Optionally prints a summary table and/or JSON to stdout.
+    Returns:
+        ``None``. Files are written to disk and output is printed as a side
+        effect.
+
+    Raises:
+        FileNotFoundError: If the provided settings file does not exist.
+        ValueError: If configuration sources contain invalid data.
     """
     from .measure import InletWorker
 
+    cli_overrides = {
+        "stream_key": stream_key,
+        "stream_value": stream_value,
+        "duration_seconds": duration_seconds,
+        "chunk_size": chunk_size,
+        "nominal_sample_rate": nominal_sample_rate,
+        "output_directory": output_directory,
+        "print_summary": print_summary,
+        "verbose_summary": verbose_summary,
+        "json_summary": json_summary,
+    }
+    settings = MeasureSettings.from_sources(
+        cli_overrides=cli_overrides,
+        env=os.environ,
+        settings_file=settings_file,
+    )
+
+    output_directory = settings.output_directory
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    inlet_worker = InletWorker(selector=(stream_key, stream_value), chunk=chunk_size)
+    inlet_worker = InletWorker(
+        selector=(settings.stream_key, settings.stream_value), chunk=settings.chunk_size
+    )
     inlet_worker.start()
 
     try:
@@ -96,7 +145,7 @@ def measure(
         print(f"[yellow]Warning:[/] Resource monitoring is disabled ({e})")
         resource_monitor = None
 
-    end_time = time.time() + duration_seconds
+    end_time = time.time() + settings.duration_seconds
     collected_samples: list[tuple] = []
 
     try:
@@ -138,7 +187,9 @@ def measure(
                 times_writer.writerow([src_timestamp, receive_timestamp])
 
     summary = compute_metrics(
-        collected_samples, nominal_sample_rate, ring_drops=inlet_worker.ring.drops
+        collected_samples,
+        settings.nominal_sample_rate,
+        ring_drops=inlet_worker.ring.drops,
     )
     resource_usage = (
         resource_monitor.snapshot() if resource_monitor is not None else None
@@ -163,10 +214,13 @@ def measure(
             "pylsl_version": importlib.metadata.version("pylsl"),
         },
         "parameters": {
-            "selector": {"key": stream_key, "value": stream_value},
-            "duration_seconds": duration_seconds,
-            "chunk_size": chunk_size,
-            "nominal_sample_rate": nominal_sample_rate,
+            "selector": {
+                "key": settings.stream_key,
+                "value": settings.stream_value,
+            },
+            "duration_seconds": settings.duration_seconds,
+            "chunk_size": settings.chunk_size,
+            "nominal_sample_rate": settings.nominal_sample_rate,
         },
     }
 
@@ -174,10 +228,10 @@ def measure(
         json.dump({**summary_dict, **metadata}, summary_file, indent=2)
 
     # Optionally print a concise summary table of key metrics
-    if print_summary:
+    if settings.print_summary:
         title = (
             "Measurement Summary (verbose)"
-            if verbose_summary
+            if settings.verbose_summary
             else "Measurement Summary"
         )
         table = Table(title=title, show_lines=False)
@@ -207,7 +261,7 @@ def measure(
             rss_mib = summary.process_rss_avg_bytes / (1024**2)
             table.add_row("proc RSS (avg)", f"{rss_mib:.1f} MiB")
 
-        if verbose_summary:
+        if settings.verbose_summary:
             table.add_row("max latency", f"{summary.max_latency_ms:.2f} ms")
             table.add_row("jitter std", f"{summary.jitter_std:.2f} ms")
             table.add_row("ISI p95", f"{summary.isi_p95_ms:.2f} ms")
@@ -229,7 +283,7 @@ def measure(
     print("[bold green]Done[/] ->", output_directory)
 
     # Optional: print compact JSON summary to stdout for scripting
-    if json_summary:
+    if settings.json_summary:
         print(json.dumps(summary.__dict__, separators=(",", ":")))
 
 
@@ -246,10 +300,14 @@ def report(
         ),
     ] = None,
 ):
-    """Render an HTML report from measurement artifacts.
+    """Render an HTML report from previously collected measurement artifacts.
 
-    If --run is not provided: use 'results/run_001' if present; otherwise prompt
-    (only when running interactively with a TTY).
+    Args:
+        run: Results directory that contains ``summary.json`` and related files.
+
+    Raises:
+        typer.BadParameter: If no run directory is available in non-interactive
+            contexts.
     """
     from .report import render_html_report
 
