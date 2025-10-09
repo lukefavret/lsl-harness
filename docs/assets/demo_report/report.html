@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSL Harness Report</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #1f2933;
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f4f7fb;
+        }
+        a.skip-link {
+            position: absolute;
+            left: -999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+        a.skip-link:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            padding: 0.75rem 1rem;
+            background-color: #0f4871;
+            color: #ffffff;
+            border-radius: 0.5rem;
+            outline: 2px solid #0f4871;
+        }
+        h1, h2 {
+            color: #102a43;
+            border-bottom: 3px solid #0f4871;
+            padding-bottom: 0.5rem;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 10px rgba(15, 72, 113, 0.15);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+        caption {
+            font-weight: 600;
+            text-align: left;
+            margin-bottom: 0.5rem;
+        }
+        thead th {
+            background-color: #0f4871;
+            color: #ffffff;
+        }
+        tbody th[scope="row"] {
+            text-align: left;
+            background-color: #d9e6f2;
+            color: #102a43;
+        }
+        tbody th[scope="rowgroup"] {
+            background-color: #0f4871;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.95rem;
+            text-align: left;
+            border-top: 4px solid #082d47;
+            border-bottom: 2px solid #082d47;
+        }
+        th, td {
+            padding: 0.75rem;
+            border: 1px solid #cbd2d9;
+            vertical-align: top;
+        }
+        tr:nth-child(even) td {
+            background-color: #f1f5f9;
+        }
+        tr:hover td {
+            background-color: #e3eef9;
+        }
+        .plots {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .plots figure {
+            margin: 0;
+            text-align: center;
+            max-width: 600px;
+            flex: 1 1 300px;
+        }
+        .plots img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(15, 72, 113, 0.2);
+        }
+        details {
+            margin-top: 2rem;
+            background-color: #e1ecf4;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        details > summary {
+            cursor: pointer;
+            font-weight: 600;
+        }
+        details:focus-within {
+            outline: 2px solid #0f4871;
+            outline-offset: 4px;
+        }
+        pre {
+            background-color: #102a43;
+            color: #f0f4f8;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="container" id="main-content">
+        <h1>LSL Harness Report</h1>
+
+        <h2>Metrics Summary</h2>
+        <table>
+            <caption>Key latency, performance, and environment metrics</caption>
+            <tbody>
+                <tr>
+                    <th scope="rowgroup" colspan="2">Latency</th>
+                </tr>
+                <tr>
+                    <th scope="row">p50</th>
+                    <td>3.8 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">p95</th>
+                    <td>5.6 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">p99</th>
+                    <td>7.1 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">Max</th>
+                    <td>9.4 ms</td>
+                </tr>
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Variability</th>
+                </tr>
+                <tr>
+                    <th scope="row">Jitter (p95-p50)</th>
+                    <td>1.8 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">Jitter std</th>
+                    <td>0.7 ms</td>
+                </tr>
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Rate & Loss</th>
+                </tr>
+                <tr>
+                    <th scope="row">Effective Hz</th>
+                    <td>998.2</td>
+                </tr>
+                <tr>
+                    <th scope="row">Drop estimate</th>
+                    <td>0.0 %</td>
+                </tr>
+                <tr>
+                    <th scope="row">Total samples</th>
+                    <td>10000</td>
+                </tr>
+                <tr>
+                    <th scope="row">Ring drops</th>
+                    <td>0</td>
+                </tr>
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Resource Usage</th>
+                </tr>
+                
+                <tr>
+                    <th scope="row">Process CPU (avg)</th>
+                    <td>12.4 %</td>
+                </tr>
+                
+                
+                <tr>
+                    <th scope="row">System CPU (avg)</th>
+                    <td>36.2 %</td>
+                </tr>
+                
+                
+                <tr>
+                    <th scope="row">Process RSS (avg)</th>
+                    <td>11.77 MiB</td>
+                </tr>
+                
+                
+                <tr>
+                    <th scope="row">System CPU / core</th>
+                    <td>
+                        
+                            core 0: 35.1 %<br>
+                        
+                            core 1: 37.3 %<br>
+                        
+                            core 2: 36.8 %<br>
+                        
+                            core 3: 35.6 %
+                        
+                    </td>
+                </tr>
+                
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Source Timing (ISI)</th>
+                </tr>
+                <tr>
+                    <th scope="row">ISI mean</th>
+                    <td>1.02 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI std</th>
+                    <td>0.12 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI p50</th>
+                    <td>1.0 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI p95</th>
+                    <td>1.18 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">ISI p99</th>
+                    <td>1.26 ms</td>
+                </tr>
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Receive Intervals (R-R)</th>
+                </tr>
+                <tr>
+                    <th scope="row">R-R mean</th>
+                    <td>1.0 ms</td>
+                </tr>
+                <tr>
+                    <th scope="row">R-R std</th>
+                    <td>0.11 ms</td>
+                </tr>
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Clock</th>
+                </tr>
+                <tr>
+                    <th scope="row">Drift</th>
+                    <td>0.42 ms/min</td>
+                </tr>
+
+                <tr>
+                    <th scope="rowgroup" colspan="2">Sequence</th>
+                </tr>
+                <tr>
+                    <th scope="row">Discontinuities</th>
+                    <td>0</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Plots</h2>
+        <div class="plots" aria-label="Performance measurement plots">
+            <figure>
+                <img src="latency_hist.png" alt="Histogram showing distribution of latency measurements in milliseconds" loading="lazy">
+                <figcaption>Latency histogram (ms)</figcaption>
+            </figure>
+            
+            <figure>
+                <img src="drift_plot.png" alt="Offset vs Time (drift)" loading="lazy">
+                <figcaption>Offset vs Time (drift)</figcaption>
+            </figure>
+            
+        </div>
+
+        <h2>Run Parameters</h2>
+        <ul>
+            <li>Selector: type=EEG</li>
+            <li>Duration (s): 60</li>
+            <li>Chunk size: 32</li>
+            <li>Nominal sample rate (Hz): 1000</li>
+            <li>Python: 3.11</li>
+            <li>Platform: linux</li>
+            <li>pylsl: 1.16.2</li>
+        </ul>
+
+        <details>
+            <summary>Raw environment JSON</summary>
+            <pre>{
+  "platform": "linux",
+  "pylsl_version": "1.16.2",
+  "python": "3.11"
+}</pre>
+            <pre>{
+  "chunk_size": 32,
+  "duration_seconds": 60,
+  "nominal_sample_rate": 1000,
+  "output_directory": "results/demo_run",
+  "selector": {
+    "key": "type",
+    "value": "EEG"
+  }
+}</pre>
+        </details>
+    </div>
+</body>
+</html>
