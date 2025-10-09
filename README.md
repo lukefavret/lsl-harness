@@ -1,24 +1,35 @@
 # LSL-Harness
 
-LSL-Harness is a lightweight, portable tool for measuring surface-level performance of Lab Streaming Layer (LSL) streams. With it you can calculate latency, jitter, drift, effective sample rate, dropped samples, and (optionally) basic resource usage (CPU & memory) without spinning up a full LabRecorder pipeline.
+LSL-Harness is a lightweight, portable tool for measuring the surface-level performance of Lab Streaming Layer (LSL) streams. It helps you capture latency, jitter, drift, throughput, and drop rates without wiring together a full LabRecorder pipeline.
 
-[Quickstart](#quickstart)
+## Contents
 
-## What it does
+1. [Who is this for?](#who-is-this-for)
+2. [Quickstart](#quickstart)
+3. [What you get](#what-you-get)
+4. [Example JSON output](#example-json-output)
+5. [Command reference](#command-reference)
+6. [Using your own LSL stream](#using-your-own-lsl-stream)
+7. [Troubleshooting](#troubleshooting)
+8. [Project information](#project-information)
 
-- Measure LSL latency, jitter, drift, effective sample rate, and drop percentages.
-- Sample optional process + system resource usage (CPU %, RSS) during acquisition.
-- Emit CSV + JSON artifacts that are easy to diff or archive.
-- Render polished HTML summaries that you can share with teammates or attach to tickets.
+## Who is this for?
+
+- **Software engineers** who want a programmable, scriptable interface for verifying that an LSL stream meets latency and throughput targets.
+- **Lab technicians and researchers** who need a guided workflow to check that sensors are behaving and to share a polished HTML summary with collaborators.
+
+Every section below calls out both the _why_ and the _how_ so people with different backgrounds can get productive quickly.
 
 ## Quickstart
 
+> ⏱️ Expect the full walkthrough (including report rendering) to take ~5 minutes on a typical laptop.
+
 ### 1. Prepare a Python environment
 
-Install dependencies with your preferred tool:
+Install dependencies with your preferred tool. The commands below create an isolated environment so that Python packages for this project do not affect other tools on your machine.
 
 ```bash
-# Using uv (recommended)
+# Using uv (recommended for reproducible installs)
 uv sync --frozen
 
 # Using pip
@@ -27,11 +38,11 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Both flows install the `lsl-harness` CLI as well as the `synthetic-outlet` helper script used in the next step.
+Both flows install the `lsl-harness` command-line interface and the `synthetic-outlet` helper script used in the next step.
 
 ### 2. Start the synthetic outlet
 
-In one terminal, launch the built-in outlet that mimics an EEG-like stream:
+The synthetic outlet mimics an EEG-style LSL stream so you can practice the workflow before connecting to lab hardware.
 
 ```bash
 # With uv
@@ -41,49 +52,92 @@ uv run synthetic-outlet
 synthetic-outlet
 ```
 
-Leave this terminal running while you collect measurements.
+Leave this terminal open; it continuously publishes data for the harness to read.
 
 ### 3. Measure the stream
 
-Open a second terminal in the project directory and record a run:
+Open a second terminal in the project directory and record a run. Adjust `--duration-seconds` or `--output-directory` as needed.
 
 ```bash
-# Customize --duration-seconds or --output-directory as needed
 uv run lsl-harness measure --duration-seconds 10 --output-directory results/demo_run
 ```
 
-When the command finishes you will see a `results/demo_run/` directory containing:
+When the command completes you will have a `results/demo_run/` directory with:
 
 - `latency.csv` — per-sample latency in milliseconds.
 - `times.csv` — source and receive timestamps for drift analysis.
-- `summary.json` — computed statistics and environment metadata (plus resource metrics if `psutil` is installed).
+- `summary.json` — computed statistics and environment metadata (plus resource metrics if `psutil` is available).
 
-(If you omit `--output-directory`, the default is `results/run_001`.)
+If `--output-directory` is omitted, results land in `results/run_001` by default.
 
 ### 4. Render the HTML report
 
-Transform the measurement artifacts into a shareable report:
+Turn the raw measurements into a shareable report:
 
 ```bash
 uv run lsl-harness report results/demo_run
 ```
 
-This writes the following files back into `results/demo_run/`:
+You will find these new artifacts alongside your measurements:
 
-- `report.html` — the full report to open in your browser.
-- `latency_hist.png` — histogram of per-sample latency.
-- `drift_plot.png` — offset-vs-time graph (present when `times.csv` exists).
+- `report.html` — interactive report suitable for attaching to tickets or sharing with teammates.
+- `latency_hist.png` — histogram of sample latency.
+- `drift_plot.png` — offset-versus-time plot (included when `times.csv` is present).
 
-## Configuration reference
+> 📁 Want a ready-made example? This repository ships with `docs/assets/demo_report`, which contains sample CSV/JSON artifacts and a rendered `report.html` you can open directly in your browser. (Binary screenshots are omitted to keep the repository lightweight.)
 
-The CLI, environment variables, and optional settings files all surface the same
-configuration knobs. Values are resolved in the following order of precedence:
+## What you get
 
-```md
+Running the harness produces a compact results folder that contains:
+
+| File | Purpose |
+| --- | --- |
+| `summary.json` | Machine-readable metrics, configuration values, and environment metadata. |
+| `latency.csv` | Millisecond latency for each received sample. Ideal for further statistical analysis. |
+| `times.csv` | Source and receive timestamps used to calculate drift (optional but recommended). |
+| `report.html` | Accessible HTML summary that highlights key performance indicators. |
+| `latency_hist.png`, `drift_plot.png` | Static plots generated by `lsl-harness report` that can be embedded in presentations or lab notebooks. |
+
+Because everything is plain text (CSV/JSON), you can version-control the outputs or compare runs using standard diff tools.
+
+## Example JSON output
+
+Below is a trimmed excerpt from `docs/assets/demo_report/summary.json`. The structure is stable, making it straightforward to feed into dashboards or CI pipelines.
+
+```json
+{
+  "p50_ms": 3.8,
+  "p95_ms": 5.6,
+  "p99_ms": 7.1,
+  "max_latency_ms": 9.4,
+  "jitter_ms": 1.8,
+  "effective_sample_rate_hz": 998.2,
+  "drops_percentage": 0.0,
+  "system_cpu_percent_avg": 36.2,
+  "parameters": {
+    "selector": { "key": "type", "value": "EEG" },
+    "duration_seconds": 60,
+    "nominal_sample_rate": 1000
+  },
+  "environment": {
+    "python": "3.11",
+    "platform": "linux",
+    "pylsl_version": "1.16.2"
+  }
+}
+```
+
+Use `jq`, Python, or your language of choice to automate acceptance checks—e.g., fail a CI job if `p95_ms` exceeds your latency budget.
+
+## Command reference
+
+The CLI, environment variables, and optional settings files all expose the same configuration knobs. Precedence is:
+
+```
 CLI flags → Environment variables → Settings file → Built-in defaults
 ```
 
-### `measure` command
+### `measure`
 
 | Purpose | CLI flag | Environment variable | Settings file key | Default |
 | --- | --- | --- | --- | --- |
@@ -97,34 +151,44 @@ CLI flags → Environment variables → Settings file → Built-in defaults
 | Include extended metrics | `--verbose-summary/--no-verbose-summary` | `LSL_MEASURE_VERBOSE_SUMMARY` | `verbose_summary` | `false` |
 | Emit JSON metrics to stdout | `--json-summary/--no-json-summary` | `LSL_MEASURE_JSON_SUMMARY` | `json_summary` | `false` |
 
-Additional helpers:
+Tips:
 
-- Use `--settings-file` (or `LSL_HARNESS_SETTINGS_FILE`) to point to a TOML/JSON
-  file that mirrors the keys above. An example template lives at
-  `docs/examples/measure_settings.toml`.
-- All boolean environment variables accept any of `1/0`, `true/false`,
-  `yes/no`, or `on/off` (case-insensitive).
+- Provide `--settings-file` (or set `LSL_HARNESS_SETTINGS_FILE`) to load a TOML/JSON file that mirrors the keys above. A starter template lives at `docs/examples/measure_settings.toml`.
+- Boolean environment variables accept `1/0`, `true/false`, `yes/no`, or `on/off` (case-insensitive).
 
-### `report` command
+### `report`
 
 | Purpose | CLI flag | Environment variable | Default |
 | --- | --- | --- | --- |
 | Results directory containing `summary.json` | `--run` | _(none)_ | `results/run_001` when present |
 
-The report command does not currently read from a settings file. It falls back
-to `results/run_001` if the flag is omitted and that directory exists. In a
-non-interactive context without the flag the command raises a helpful error.
+The report command reads the artifacts produced by `measure`. If `--run` is omitted in a non-interactive context and `results/run_001` does not exist, the command exits with a helpful error explaining how to point at a run directory.
 
-## Troubleshooting `PYLSL_LIB`
+## Using your own LSL stream
+
+1. Identify the stream you want to inspect using the LSL stream inspector of your choice (LabRecorder, LSL Browser, etc.). Note the key/value pair that uniquely identifies it.
+2. Run `lsl-harness measure --stream-key NAME --stream-value VALUE ...` with the parameters above.
+3. For long captures, increase `--duration-seconds` and consider enabling JSON output (`--json-summary`) so the terminal prints the summarized metrics immediately.
+4. Use the generated `summary.json` to compare against baseline runs. For example, track `effective_sample_rate_hz` over time to catch clock drift or hardware fatigue.
+
+## Troubleshooting
+
+### `PYLSL_LIB`
 
 On Linux and WSL, `pylsl` looks for the native `liblsl.so` in its package directory, on the system library path, or wherever the `PYLSL_LIB` environment variable points. If you already run other LSL apps you probably have it available—otherwise try the following:
 
 1. **Point to Conda’s copy** – If you installed `liblsl` through Conda or Mamba, run `export PYLSL_LIB="$CONDA_PREFIX/lib/liblsl.so"` before launching `lsl-harness`.
 2. **Bundle a local build** – Drop `liblsl.so` under `vendor/liblsl/` in this repository and `export PYLSL_LIB="$(pwd)/vendor/liblsl/liblsl.so"`.
 3. **Verify the setting** – Use `python -c "import pylsl, os; print(os.environ.get('PYLSL_LIB'), pylsl.lib.__file__)"` inside your virtual environment to confirm that Python can load the shared library.
-4. **Check architecture mismatches** – Ensure that the `liblsl.so` you point to matches your Python architecture (e.g., both x86_64). A wrong architecture manifests as `OSError: wrong ELF class` when importing `pylsl`.
+4. **Check architecture mismatches** – Ensure that the `liblsl.so` you point to matches your Python architecture (for example, both x86_64). A wrong architecture manifests as `OSError: wrong ELF class` when importing `pylsl`.
 
-Once `pylsl` can load `liblsl.so`, re-run the quickstart steps above.
+### Still stuck?
 
-- Project license: MIT (see `LICENSE`).
-- Third-party components: see `third_party_notices.md`.
+- Run `lsl-harness measure --verbose-summary` to include more diagnostics (resource usage, per-core CPU percentages) in both the console output and `summary.json`.
+- Open an issue with the command you ran and attach `summary.json` if possible. Sanitizing metadata is safe—the file does not contain sample payloads.
+
+## Project information
+
+- License: MIT (see [`LICENSE`](LICENSE)).
+- Third-party components: see [`third_party_notices.md`](third_party_notices.md).
+- Contributions are welcome! Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines on submitting patches or filing bug reports.

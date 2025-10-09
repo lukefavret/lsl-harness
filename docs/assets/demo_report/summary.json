@@ -1,0 +1,45 @@
+{
+  "p50_ms": 3.8,
+  "p95_ms": 5.6,
+  "p99_ms": 7.1,
+  "max_latency_ms": 9.4,
+  "jitter_ms": 1.8,
+  "jitter_std": 0.7,
+  "effective_sample_rate_hz": 998.2,
+  "drops_percentage": 0.0,
+  "total_sample_count": 10000,
+  "ring_drops": 0,
+  "isi_mean_ms": 1.02,
+  "isi_std_ms": 0.12,
+  "isi_p50_ms": 1.0,
+  "isi_p95_ms": 1.18,
+  "isi_p99_ms": 1.26,
+  "rr_mean_ms": 1.0,
+  "rr_std_ms": 0.11,
+  "drift_ms_per_min": 0.42,
+  "sequence_discontinuities": 0,
+  "process_cpu_percent_avg": 12.4,
+  "process_rss_avg_bytes": 12345678,
+  "system_cpu_percent_avg": 36.2,
+  "system_cpu_percent_per_core_avg": [
+    35.1,
+    37.3,
+    36.8,
+    35.6
+  ],
+  "parameters": {
+    "selector": {
+      "key": "type",
+      "value": "EEG"
+    },
+    "duration_seconds": 60,
+    "chunk_size": 32,
+    "nominal_sample_rate": 1000,
+    "output_directory": "results/demo_run"
+  },
+  "environment": {
+    "python": "3.11",
+    "platform": "linux",
+    "pylsl_version": "1.16.2"
+  }
+}
