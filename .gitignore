@@ -31,7 +31,7 @@ results/
 
 # --- Docs (MkDocs/Sphinx build output) ---
 site/
-
+.archive/
 # --- Vendor native libs (keep folder, ignore binaries) ---
 vendor/liblsl/*
 !vendor/liblsl/.gitkeep

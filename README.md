@@ -74,6 +74,47 @@ This writes the following files back into `results/demo_run/`:
 - `latency_hist.png` — histogram of per-sample latency.
 - `drift_plot.png` — offset-vs-time graph (present when `times.csv` exists).
 
+## Configuration reference
+
+The CLI, environment variables, and optional settings files all surface the same
+configuration knobs. Values are resolved in the following order of precedence:
+
+```md
+CLI flags → Environment variables → Settings file → Built-in defaults
+```
+
+### `measure` command
+
+| Purpose | CLI flag | Environment variable | Settings file key | Default |
+| --- | --- | --- | --- | --- |
+| Stream selector key | `--stream-key` | `LSL_MEASURE_STREAM_KEY` | `stream_key` | `"type"` |
+| Stream selector value | `--stream-value` | `LSL_MEASURE_STREAM_VALUE` | `stream_value` | `"EEG"` |
+| Acquisition duration (seconds) | `--duration-seconds` | `LSL_MEASURE_DURATION_SECONDS` | `duration_seconds` | `10.0` |
+| Samples per pull | `--chunk-size` | `LSL_MEASURE_CHUNK_SIZE` | `chunk_size` | `32` |
+| Nominal sample rate (Hz) | `--nominal-sample-rate` | `LSL_MEASURE_NOMINAL_SAMPLE_RATE` | `nominal_sample_rate` | `1000.0` |
+| Output directory | `--output-directory` | `LSL_MEASURE_OUTPUT_DIRECTORY` | `output_directory` | `results/run_001` |
+| Print console summary | `--summary/--no-summary` | `LSL_MEASURE_SUMMARY` | `print_summary` | `true` |
+| Include extended metrics | `--verbose-summary/--no-verbose-summary` | `LSL_MEASURE_VERBOSE_SUMMARY` | `verbose_summary` | `false` |
+| Emit JSON metrics to stdout | `--json-summary/--no-json-summary` | `LSL_MEASURE_JSON_SUMMARY` | `json_summary` | `false` |
+
+Additional helpers:
+
+- Use `--settings-file` (or `LSL_HARNESS_SETTINGS_FILE`) to point to a TOML/JSON
+  file that mirrors the keys above. An example template lives at
+  `docs/examples/measure_settings.toml`.
+- All boolean environment variables accept any of `1/0`, `true/false`,
+  `yes/no`, or `on/off` (case-insensitive).
+
+### `report` command
+
+| Purpose | CLI flag | Environment variable | Default |
+| --- | --- | --- | --- |
+| Results directory containing `summary.json` | `--run` | _(none)_ | `results/run_001` when present |
+
+The report command does not currently read from a settings file. It falls back
+to `results/run_001` if the flag is omitted and that directory exists. In a
+non-interactive context without the flag the command raises a helpful error.
+
 ## Troubleshooting `PYLSL_LIB`
 
 On Linux and WSL, `pylsl` looks for the native `liblsl.so` in its package directory, on the system library path, or wherever the `PYLSL_LIB` environment variable points. If you already run other LSL apps you probably have it available—otherwise try the following:

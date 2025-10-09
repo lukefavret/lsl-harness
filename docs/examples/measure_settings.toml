@@ -1,0 +1,28 @@
+# Example configuration for the `lsl-harness measure` command.
+# Values in this file can be overridden by environment variables or CLI flags.
+# Each key maps 1:1 with the CLI flags documented in the README.
+[measure]
+# Stream selector defaults
+#   CLI: --stream-key / --stream-value
+#   ENV: LSL_MEASURE_STREAM_KEY / LSL_MEASURE_STREAM_VALUE
+stream_key = "type"
+stream_value = "EEG"
+
+# Acquisition parameters
+#   CLI: --nominal-sample-rate, --chunk-size, --duration-seconds
+#   ENV: LSL_MEASURE_NOMINAL_SAMPLE_RATE, LSL_MEASURE_CHUNK_SIZE, LSL_MEASURE_DURATION_SECONDS
+nominal_sample_rate = 1000.0
+chunk_size = 32
+duration_seconds = 10.0
+
+# Output location for measurement artefacts
+#   CLI: --output-directory
+#   ENV: LSL_MEASURE_OUTPUT_DIRECTORY
+output_directory = "results/run_001"
+
+# Summary output controls
+#   CLI: --summary/--no-summary, --verbose-summary/--no-verbose-summary, --json-summary/--no-json-summary
+#   ENV: LSL_MEASURE_SUMMARY, LSL_MEASURE_VERBOSE_SUMMARY, LSL_MEASURE_JSON_SUMMARY
+print_summary = true
+verbose_summary = false
+json_summary = false
