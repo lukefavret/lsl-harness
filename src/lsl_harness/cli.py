@@ -11,8 +11,8 @@ confidently.
 import csv
 import importlib.metadata
 import json
-import platform
 import os
+import platform
 import sys
 import time
 from pathlib import Path
@@ -40,15 +40,15 @@ def measure(
     stream_key: Annotated[
         str | None, typer.Option(help="LSL resolve key (e.g., 'name' or 'type')")
     ] = None,
-    stream_value: Annotated[
-        str | None, typer.Option(help="LSL resolve value")
-    ] = None,
+    stream_value: Annotated[str | None, typer.Option(help="LSL resolve value")] = None,
     duration_seconds: Annotated[
         float | None, typer.Option(help="Duration in seconds to collect samples.")
     ] = None,
     chunk_size: Annotated[
         int | None,
-        typer.Option(help="Maximum number of samples to pull from the stream per chunk."),
+        typer.Option(
+            help="Maximum number of samples to pull from the stream per chunk."
+        ),
     ] = None,
     nominal_sample_rate: Annotated[
         float | None,

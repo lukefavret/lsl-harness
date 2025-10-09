@@ -7,9 +7,10 @@ classes exposed here are intentionally small and well-tested so they can serve
 as reference implementations when adding new commands to the harness.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Mapping
+from typing import Any, ClassVar
 
 try:  # Python >=3.11
     import tomllib  # type: ignore[attr-defined]
@@ -31,10 +32,9 @@ def _to_bool(value: Any) -> bool:
     Raises:
         ValueError: If *value* cannot be interpreted as a boolean.
     """
-
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return bool(value)
     if isinstance(value, str):
         normalized = value.strip().lower()
@@ -59,7 +59,6 @@ def _resolve_settings_path(
         The selected settings file path or ``None`` if no explicit path is
         provided.
     """
-
     if cli_path:
         return cli_path
     env_value = env.get("LSL_HARNESS_SETTINGS_FILE")
@@ -137,13 +136,14 @@ class MeasureSettings:
             ValueError: If the parsed file contains unsupported types or
                 malformed structures.
         """
-
         settings_path = _resolve_settings_path(settings_file, env)
         data: dict[str, Any] = {}
 
         if settings_path:
             if not settings_path.exists():
-                raise FileNotFoundError(f"Settings file '{settings_path}' does not exist")
+                raise FileNotFoundError(
+                    f"Settings file '{settings_path}' does not exist"
+                )
             data.update(cls._load_settings_file(settings_path))
 
         data.update(cls._load_from_env(env))
@@ -165,7 +165,6 @@ class MeasureSettings:
             Mapping of dataclass field names to parsed values. Only environment
             variables that are present and non-empty are included.
         """
-
         loaded: dict[str, Any] = {}
         for field_name, env_key in cls._ENV_KEYS.items():
             if env_key not in env:
@@ -193,7 +192,6 @@ class MeasureSettings:
             ValueError: If the document is not a mapping or contains unsupported
                 types.
         """
-
         if not path.exists():
             return {}
         suffix = path.suffix.lower()
@@ -228,4 +226,3 @@ class MeasureSettings:
 
 
 __all__ = ["MeasureSettings"]
-

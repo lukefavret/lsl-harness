@@ -79,7 +79,7 @@ This writes the following files back into `results/demo_run/`:
 The CLI, environment variables, and optional settings files all surface the same
 configuration knobs. Values are resolved in the following order of precedence:
 
-```
+```md
 CLI flags → Environment variables → Settings file → Built-in defaults
 ```
 

@@ -153,7 +153,6 @@ def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics)
 
 def test_measure_uses_settings_file(tmp_path, mock_inlet_worker, mock_compute_metrics):
     """Ensure a settings file provides defaults for the measure command."""
-
     output_dir = tmp_path / "settings_run"
     settings_path = tmp_path / "settings.toml"
     settings_path.write_text(
@@ -187,9 +186,10 @@ def test_measure_uses_settings_file(tmp_path, mock_inlet_worker, mock_compute_me
     assert summary_data["parameters"]["nominal_sample_rate"] == 250.0
 
 
-def test_measure_env_overrides_settings(tmp_path, mock_inlet_worker, mock_compute_metrics):
+def test_measure_env_overrides_settings(
+    tmp_path, mock_inlet_worker, mock_compute_metrics
+):
     """Environment variables should override values from the settings file."""
-
     settings_output = tmp_path / "settings_base"
     settings_path = tmp_path / "settings.toml"
     settings_path.write_text(
@@ -223,7 +223,6 @@ def test_measure_env_overrides_settings(tmp_path, mock_inlet_worker, mock_comput
 
 def test_measure_cli_overrides_env(tmp_path, mock_inlet_worker, mock_compute_metrics):
     """CLI arguments should take precedence over environment variables."""
-
     settings_path = tmp_path / "settings.toml"
     settings_path.write_text("[measure]\nduration_seconds = 0.1\n")
 
