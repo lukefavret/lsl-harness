@@ -63,7 +63,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.10.x"
           - "3.11.x"
           - "3.12.x"
           - "3.13.x"
@@ -99,6 +98,9 @@ jobs:
           else
             echo "No pyproject.toml; skipping sync"
           fi
+
+      - name: Install package (enforces requires-python)
+        run: uv pip install --no-deps -e .
 
       - name: Import check
         run: uv run python -c "import lsl_harness; print('import ok')"
