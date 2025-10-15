@@ -24,6 +24,7 @@ class FakePylslShim(types.ModuleType):
     module required for importing and testing `lsl_harness.measure` without
     native dependencies.
     """
+
     StreamInlet: type
     local_clock: Callable[[], float]
     resolve_byprop: Callable[..., list]
@@ -36,6 +37,7 @@ class FakePylslShim(types.ModuleType):
         self.local_clock = lambda: 0.0
         self.resolve_byprop = lambda *args, **kwargs: []
         self.resolve_stream = lambda *args, **kwargs: []
+
 
 sys.modules.setdefault("pylsl", FakePylslShim())
 # Import the production module only after the stub is installed so importing
