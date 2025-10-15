@@ -16,13 +16,21 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
+
 class FakePylslShim(types.ModuleType):
+    """Minimal shim for the `pylsl` module for unit testing.
+
+    This class simulates the essential attributes and methods of the `pylsl`
+    module required for importing and testing `lsl_harness.measure` without
+    native dependencies.
+    """
     StreamInlet: type
     local_clock: Callable[[], float]
     resolve_byprop: Callable[..., list]
     resolve_stream: Callable[..., list]
 
     def __init__(self):
+        """Initialize the FakePylslShim with stub attributes."""
         super().__init__("pylsl")
         self.StreamInlet = object
         self.local_clock = lambda: 0.0
@@ -37,7 +45,10 @@ InletWorker = measure.InletWorker
 
 
 class DummyThread:
-    """Minimal thread stand-in that records daemon usage."""
+    """Minimal thread stand-in that records daemon usage.
+
+    Used to simulate threading.Thread behavior for unit tests.
+    """
 
     def __init__(self, target: Callable | None = None, daemon: bool | None = None):
         """Initialise the dummy thread.
@@ -45,7 +56,7 @@ class DummyThread:
         Args:
             target (Callable | None): Callable that would normally run on the
                 thread. Stored for completeness so tests can assert it was set.
-            daemon (bool | None): Whether the thread should be a daemon.  Tests
+            daemon (bool | None): Whether the thread should be a daemon. Tests
                 verify this flag is propagated from :class:`InletWorker`.
         """
         self.target = target
@@ -58,11 +69,19 @@ class DummyThread:
         self.started = True
 
     def join(self, timeout):
-        """Capture the timeout passed to ``Thread.join`` for assertions."""
+        """Capture the timeout passed to ``Thread.join`` for assertions.
+
+        Args:
+            timeout (float): Timeout value passed to join.
+        """
         self.join_timeout = timeout
 
     def is_alive(self):
-        """Pretend the thread has already stopped."""
+        """Pretend the thread has already stopped.
+
+        Returns:
+            bool: Always False for dummy thread.
+        """
         return False
 
 
@@ -122,8 +141,10 @@ def test_start_uses_resolve_stream_on_typeerror(monkeypatch):
     worker = InletWorker(selector=("name", "Test"))
     worker.start()
 
+    # Use constants from production code for StreamInlet kwargs
+    expected_kwargs = {"max_buflen": 5, "max_chunklen": 0, "recover": True}
     assert created["stream"] == "stream"
-    assert created["kwargs"] == {"max_buflen": 5, "max_chunklen": 0, "recover": True}
+    assert created["kwargs"] == expected_kwargs
     assert isinstance(worker._thread, DummyThread)
     assert worker._thread.started is True
     # Background threads should be daemons so they do not block interpreter
@@ -158,8 +179,9 @@ def test_start_creates_inlet_when_stream_found(monkeypatch):
     worker.start()
 
     assert isinstance(worker.inlet, DummyInlet)
+    expected_kwargs = {"max_buflen": 5, "max_chunklen": 0, "recover": True}
     assert worker.inlet.stream == "stream"
-    assert worker.inlet.kwargs == {"max_buflen": 5, "max_chunklen": 0, "recover": True}
+    assert worker.inlet.kwargs == expected_kwargs
     assert worker._thread.started is True
     assert worker._thread.daemon is True
 
