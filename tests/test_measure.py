@@ -16,13 +16,20 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-_fake_pylsl = types.ModuleType("pylsl")
-_fake_pylsl.StreamInlet = object
-_fake_pylsl.local_clock = lambda: 0.0
-_fake_pylsl.resolve_byprop = lambda *args, **kwargs: []
-_fake_pylsl.resolve_stream = lambda *args, **kwargs: []
-sys.modules.setdefault("pylsl", _fake_pylsl)
+class FakePylslShim(types.ModuleType):
+    StreamInlet: type
+    local_clock: Callable[[], float]
+    resolve_byprop: Callable[..., list]
+    resolve_stream: Callable[..., list]
 
+    def __init__(self):
+        super().__init__("pylsl")
+        self.StreamInlet = object
+        self.local_clock = lambda: 0.0
+        self.resolve_byprop = lambda *args, **kwargs: []
+        self.resolve_stream = lambda *args, **kwargs: []
+
+sys.modules.setdefault("pylsl", FakePylslShim())
 # Import the production module only after the stub is installed so importing
 # ``pylsl`` within :mod:`lsl_harness.measure` succeeds in the test environment.
 measure = importlib.import_module("lsl_harness.measure")
