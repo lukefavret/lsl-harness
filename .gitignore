@@ -36,6 +36,9 @@ site/
 vendor/liblsl/*
 !vendor/liblsl/.gitkeep
 
+# --- Unused files ---
+.archive/
+
 # --- VS Code (track only the useful configs) ---
 .vscode/*
 !.vscode/launch.json
