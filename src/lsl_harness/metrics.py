@@ -75,6 +75,37 @@ class Summary:
     system_cpu_percent_per_core_avg: tuple[float, ...] = field(default_factory=tuple)
 
 
+def reconstruct_receive_times(
+    source_timestamps: np.ndarray,
+    chunk_recv_timestamp: float,
+) -> np.ndarray:
+    """Reconstruct per-sample receive times from a chunk timestamp.
+
+    The LSL API provides a single receive timestamp per chunk.  For latency and
+    drift analysis we assume that timestamp corresponds to the final sample in
+    the chunk and that all prior samples arrived with identical offsets relative
+    to their source timestamps.  Under this model, the receive time for an
+    earlier sample is the chunk receive timestamp minus the elapsed time between
+    that sample and the chunk's final source timestamp.
+
+    Args:
+        source_timestamps: Source timestamps for a chunk (seconds).
+        chunk_recv_timestamp: Receive timestamp reported for the entire chunk
+            (seconds).
+
+    Returns:
+        ``np.ndarray`` containing reconstructed receive timestamps for each
+        sample in ``source_timestamps``.  The array is empty when the input is
+        empty.
+    """
+    source_timestamps = np.asarray(source_timestamps, dtype=np.float64)
+    if source_timestamps.size == 0:
+        return np.empty(0, dtype=np.float64)
+
+    last_source_timestamp = float(source_timestamps[-1])
+    return chunk_recv_timestamp - (last_source_timestamp - source_timestamps)
+
+
 def compute_metrics(
     chunks: Iterable[tuple[np.ndarray, np.ndarray, float]],
     nominal_rate: float,
@@ -132,8 +163,9 @@ def compute_metrics(
     prev_last_ts = None
 
     for _data, source_timestamps, chunk_rcv_timestamp in chunks:
-        chunk_receive_times.append(chunk_rcv_timestamp)
-        sample_count = len(source_timestamps)
+        chunk_receive_times.append(float(chunk_rcv_timestamp))
+        source_timestamps = np.asarray(source_timestamps, dtype=np.float64)
+        sample_count = int(source_timestamps.size)
         if sample_count == 0:
             continue
         # Chronological order check: first ts of this chunk vs last ts of previous chunk
@@ -142,15 +174,10 @@ def compute_metrics(
         prev_last_ts = float(source_timestamps[-1])
 
         total_sample_count += sample_count
-        # Reconstruct per-sample receive timestamps:
-        # Assume the chunk receive time (chunk_rcv_timestamp)
-        # is when the last sample arrived.
-        # For each sample, estimate its receive time as:
-        # recv_individual = recv_last - (ts_last - ts_individual)
-        # Equivalent to shifting all source timestamps by a const latency offset,
-        # preserving the original timing structure within the chunk.
-        ts_last = float(source_timestamps[-1])
-        per_sample_recv = chunk_rcv_timestamp - (ts_last - source_timestamps)
+        # Reconstruct per-sample receive timestamps preserving intra-chunk timing.
+        per_sample_recv = reconstruct_receive_times(
+            source_timestamps, float(chunk_rcv_timestamp)
+        )
         # Compute per-sample latency (ms) for samples in this chunk
         chunk_latencies = (per_sample_recv - source_timestamps) * 1000.0
         # Convert to Python floats to avoid keeping a reference to the NumPy array,
