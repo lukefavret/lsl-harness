@@ -207,7 +207,7 @@ def test_measure_records_reconstructed_receive_times(
             zip(src_array.tolist(), per_sample_recv.tolist(), strict=True)
         )
 
-    assert rows == expected_rows
+    assert np.array_equal(rows, expected_rows)
 
 
 def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics):
