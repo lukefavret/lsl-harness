@@ -10,10 +10,12 @@ import textwrap
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 from typer.testing import CliRunner
 
 from lsl_harness.cli import app
+from lsl_harness.metrics import reconstruct_receive_times
 
 runner = CliRunner()
 
@@ -26,16 +28,52 @@ def mock_pylsl(monkeypatch):
 
 
 @pytest.fixture
-def mock_inlet_worker():
-    """Fixture to mock the InletWorker."""
+def sample_chunk_layout():
+    """Provide deterministic sample data for CLI tests."""
+    return [
+        {"src": [1.0, 1.1], "recv": 1.2},
+        {"src": [], "recv": 1.25},
+        {"src": [1.2, 1.3], "recv": 1.4},
+    ]
+
+
+@pytest.fixture
+def mock_inlet_worker(sample_chunk_layout):
+    """Fixture to mock the InletWorker with predictable chunk drains."""
     with patch("lsl_harness.measure.InletWorker") as mock:
-        # Mock the ring buffer and its drain_upto method
         mock_ring = MagicMock()
-        # Simulate some collected samples
-        mock_ring.drain_upto.return_value = [
-            (MagicMock(), [1.0, 1.1], 1.2),
-            (MagicMock(), [1.2, 1.3], 1.4),
+
+        # Each call to ``drain_upto`` returns the next batch of chunks.  The
+        # sequence includes an empty chunk to exercise skip logic in the CLI.
+        drain_plan = [
+            [
+                (
+                    MagicMock(),
+                    list(sample_chunk_layout[0]["src"]),
+                    sample_chunk_layout[0]["recv"],
+                ),
+                (
+                    MagicMock(),
+                    list(sample_chunk_layout[1]["src"]),
+                    sample_chunk_layout[1]["recv"],
+                ),
+            ],
+            [
+                (
+                    MagicMock(),
+                    list(sample_chunk_layout[2]["src"]),
+                    sample_chunk_layout[2]["recv"],
+                ),
+            ],
+            [],
         ]
+
+        def drain_side_effect(_max_items):
+            if drain_plan:
+                return drain_plan.pop(0)
+            return []
+
+        mock_ring.drain_upto.side_effect = drain_side_effect
         mock_ring.drops = 5
 
         mock_worker_instance = mock.return_value
@@ -74,7 +112,9 @@ def mock_compute_metrics():
         yield mock
 
 
-def test_measure_command(tmp_path, mock_inlet_worker, mock_compute_metrics):
+def test_measure_command(
+    tmp_path, sample_chunk_layout, mock_inlet_worker, mock_compute_metrics
+):
     """Test the 'measure' command."""
     output_dir = tmp_path / "test_run"
     with patch("time.sleep"), patch("time.time") as mock_time:
@@ -115,9 +155,59 @@ def test_measure_command(tmp_path, mock_inlet_worker, mock_compute_metrics):
         reader = csv.reader(f)
         header = next(reader)
         assert header == ["latency_ms"]
-        rows = list(reader)
-        # drain_upto is called once in the loop and once after
-        assert len(rows) == 8
+        rows = [float(row[0]) for row in reader]
+
+    expected_latencies = []
+    for chunk in sample_chunk_layout:
+        if not chunk["src"]:
+            continue
+        per_sample_recv = reconstruct_receive_times(
+            np.asarray(chunk["src"], dtype=np.float64), chunk["recv"]
+        )
+        expected_latencies.extend(
+            (
+                (per_sample_recv - np.asarray(chunk["src"], dtype=np.float64)) * 1000.0
+            ).tolist()
+        )
+
+    assert rows == expected_latencies
+
+
+def test_measure_records_reconstructed_receive_times(
+    tmp_path, sample_chunk_layout, mock_inlet_worker, mock_compute_metrics
+):
+    """Regression test ensuring per-sample receive timestamps are reconstructed."""
+    output_dir = tmp_path / "test_run_times"
+    result = runner.invoke(
+        app,
+        [
+            "measure",
+            "--output-directory",
+            str(output_dir),
+            "--duration-seconds",
+            "0.1",
+        ],
+    )
+
+    assert result.exit_code == 0
+
+    with open(output_dir / "times.csv") as f:
+        reader = csv.reader(f)
+        header = next(reader)
+        assert header == ["src_time", "recv_time"]
+        rows = [(float(src), float(recv)) for src, recv in reader]
+
+    expected_rows: list[tuple[float, float]] = []
+    for chunk in sample_chunk_layout:
+        if not chunk["src"]:
+            continue
+        src_array = np.asarray(chunk["src"], dtype=np.float64)
+        per_sample_recv = reconstruct_receive_times(src_array, chunk["recv"])
+        expected_rows.extend(
+            zip(src_array.tolist(), per_sample_recv.tolist(), strict=True)
+        )
+
+    assert rows == expected_rows
 
 
 def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics):

@@ -18,11 +18,12 @@ import time
 from pathlib import Path
 from typing import Annotated
 
+import numpy as np
 import typer
 from rich import print
 from rich.table import Table
 
-from .metrics import compute_metrics
+from .metrics import compute_metrics, reconstruct_receive_times
 from .resource_monitor import ResourceMonitor
 from .settings import MeasureSettings
 
@@ -177,14 +178,22 @@ def measure(
 
         # Process each chunk of collected samples
         for _data, src_timestamp_list, receive_timestamp in collected_samples:
-            # Iterate through each individual sample within the chunk
-            for src_timestamp in src_timestamp_list:
-                # Calculate latency for the single sample
-                latency_ms = (receive_timestamp - src_timestamp) * 1000.0
+            if not src_timestamp_list:
+                continue
 
-                # Write the individual rows directly to the files
-                latency_writer.writerow([latency_ms])
-                times_writer.writerow([src_timestamp, receive_timestamp])
+            # Convert to ndarray for helper compatibility and numeric stability.
+            source_timestamps = np.asarray(src_timestamp_list, dtype=np.float64)
+            recv_timestamps = reconstruct_receive_times(
+                source_timestamps, float(receive_timestamp)
+            )
+            latencies_ms = (recv_timestamps - source_timestamps) * 1000.0
+
+            # Write the per-sample timing information to disk.
+            for src_ts, recv_ts, latency_ms in zip(
+                source_timestamps, recv_timestamps, latencies_ms, strict=True
+            ):
+                latency_writer.writerow([float(latency_ms)])
+                times_writer.writerow([float(src_ts), float(recv_ts)])
 
     summary = compute_metrics(
         collected_samples,
