@@ -178,7 +178,7 @@ def measure(
 
         # Process each chunk of collected samples
         for _data, src_timestamp_list, receive_timestamp in collected_samples:
-            if not src_timestamp_list:
+            if len(src_timestamp_list) == 0:
                 continue
 
             # Convert to ndarray for helper compatibility and numeric stability.
