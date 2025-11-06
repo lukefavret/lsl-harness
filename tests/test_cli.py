@@ -120,6 +120,78 @@ def test_measure_command(tmp_path, mock_inlet_worker, mock_compute_metrics):
         assert len(rows) == 8
 
 
+def test_measure_latency_csv_reconstructs_sample_times(tmp_path):
+    """The latency CSV should reflect a constant per-sample latency offset."""
+    src_timestamps = [1.0, 1.1, 1.2]
+    receive_timestamp = 1.25
+    chunk = (MagicMock(), src_timestamps, receive_timestamp)
+    expected_latency_ms = (receive_timestamp - src_timestamps[-1]) * 1000.0
+    output_dir = tmp_path / "latency_constant"
+
+    with (
+        patch("lsl_harness.measure.InletWorker") as mock_inlet_worker,
+        patch("lsl_harness.cli.compute_metrics") as mock_compute_metrics,
+        patch("time.time") as mock_time,
+        patch("time.sleep"),
+    ):
+        inlet_instance = mock_inlet_worker.return_value
+        inlet_instance.start.return_value = None
+        inlet_instance.stop.return_value = None
+        inlet_instance.ring = MagicMock()
+        inlet_instance.ring.drain_upto.side_effect = [[chunk], []]
+        inlet_instance.ring.drops = 0
+
+        mock_compute_metrics.return_value = SimpleNamespace(
+            p50_ms=expected_latency_ms,
+            p95_ms=expected_latency_ms,
+            p99_ms=expected_latency_ms,
+            jitter_ms=0.0,
+            effective_sample_rate_hz=100.0,
+            drift_ms_per_min=0.0,
+            drops_percentage=0.0,
+            total_sample_count=len(src_timestamps),
+            ring_drops=0,
+            max_latency_ms=expected_latency_ms,
+            jitter_std=0.0,
+            isi_p95_ms=1.0,
+            isi_p99_ms=1.0,
+            rr_std_ms=0.0,
+            sequence_discontinuities=0,
+            process_cpu_percent_avg=None,
+            process_rss_avg_bytes=None,
+            system_cpu_percent_avg=None,
+            system_cpu_percent_per_core_avg=(),
+        )
+
+        mock_time.side_effect = [0.0, 0.0, 1.0]
+
+        result = runner.invoke(
+            app,
+            [
+                "measure",
+                "--duration-seconds",
+                "0.5",
+                "--output-directory",
+                str(output_dir),
+                "--no-summary",
+            ],
+        )
+
+    assert result.exit_code == 0
+
+    latency_path = output_dir / "latency.csv"
+    assert latency_path.exists()
+
+    with open(latency_path, newline="") as latency_file:
+        reader = csv.reader(latency_file)
+        header = next(reader)
+        assert header == ["latency_ms"]
+        latency_values = [float(row[0]) for row in reader]
+
+    assert latency_values, "Expected latency samples in CSV"
+    assert all(value == expected_latency_ms for value in latency_values)
+
+
 def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics):
     """Test the 'measure' command with --json-summary."""
     output_dir = tmp_path / "test_run"
