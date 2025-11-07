@@ -110,8 +110,30 @@ def mock_compute_metrics():
         yield mock
 
 
+@pytest.fixture
+def mock_resource_monitor():
+    """Fixture to mock resource monitoring with deterministic values."""
+    snapshot = SimpleNamespace(
+        process_cpu_percent_avg=12.5,
+        process_rss_avg_bytes=float(52 * 1024 * 1024),
+        system_cpu_percent_avg=34.2,
+        system_cpu_percent_per_core_avg=(30.1, 38.3),
+    )
+    with patch("lsl_harness.cli.ResourceMonitor") as mock_cls:
+        monitor_instance = MagicMock()
+        monitor_instance.maybe_sample.return_value = False
+        monitor_instance.finalize.return_value = None
+        monitor_instance.snapshot.return_value = snapshot
+        mock_cls.return_value = monitor_instance
+        yield snapshot
+
+
 def test_measure_command(
-    tmp_path, sample_chunk_layout, mock_inlet_worker, mock_compute_metrics
+    tmp_path,
+    sample_chunk_layout,
+    mock_inlet_worker,
+    mock_compute_metrics,
+    mock_resource_monitor,
 ):
     """Test the 'measure' command."""
     output_dir = tmp_path / "test_run"
@@ -132,6 +154,12 @@ def test_measure_command(
     assert result.exit_code == 0
     assert "Done" in result.stdout
     assert str(output_dir) in result.stdout
+    assert "proc CPU (avg)" in result.stdout
+    assert f"{mock_resource_monitor.process_cpu_percent_avg:.1f} %" in result.stdout
+    assert "system CPU (avg)" in result.stdout
+    assert f"{mock_resource_monitor.system_cpu_percent_avg:.1f} %" in result.stdout
+    rss_mib = mock_resource_monitor.process_rss_avg_bytes / (1024**2)
+    assert f"{rss_mib:.1f} MiB" in result.stdout
 
     # Check that the files were created
     summary_path = output_dir / "summary.json"
@@ -146,6 +174,18 @@ def test_measure_command(
     with open(summary_path) as f:
         summary_data = json.load(f)
     assert summary_data["p50_ms"] == 10.0
+    assert summary_data["process_cpu_percent_avg"] == pytest.approx(
+        mock_resource_monitor.process_cpu_percent_avg
+    )
+    assert summary_data["process_rss_avg_bytes"] == pytest.approx(
+        mock_resource_monitor.process_rss_avg_bytes
+    )
+    assert summary_data["system_cpu_percent_avg"] == pytest.approx(
+        mock_resource_monitor.system_cpu_percent_avg
+    )
+    assert summary_data["system_cpu_percent_per_core_avg"] == list(
+        mock_resource_monitor.system_cpu_percent_per_core_avg
+    )
     assert summary_data["parameters"]["duration_seconds"] == 0.1
 
     # Check the content of latency.csv
@@ -170,7 +210,11 @@ def test_measure_command(
 
 
 def test_measure_records_reconstructed_receive_times(
-    tmp_path, sample_chunk_layout, mock_inlet_worker, mock_compute_metrics
+    tmp_path,
+    sample_chunk_layout,
+    mock_inlet_worker,
+    mock_compute_metrics,
+    mock_resource_monitor,
 ):
     """Regression test ensuring per-sample receive timestamps are reconstructed."""
     output_dir = tmp_path / "test_run_times"
@@ -207,7 +251,9 @@ def test_measure_records_reconstructed_receive_times(
     assert rows == expected_rows
 
 
-def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics):
+def test_measure_json_summary(
+    tmp_path, mock_inlet_worker, mock_compute_metrics, mock_resource_monitor
+):
     """Test the 'measure' command with --json-summary."""
     output_dir = tmp_path / "test_run"
     result = runner.invoke(
@@ -236,9 +282,23 @@ def test_measure_json_summary(tmp_path, mock_inlet_worker, mock_compute_metrics)
     assert json_output, "No JSON output found"
     summary_data = json.loads(json_output)
     assert summary_data["p50_ms"] == 10.0
+    assert summary_data["process_cpu_percent_avg"] == pytest.approx(
+        mock_resource_monitor.process_cpu_percent_avg
+    )
+    assert summary_data["process_rss_avg_bytes"] == pytest.approx(
+        mock_resource_monitor.process_rss_avg_bytes
+    )
+    assert summary_data["system_cpu_percent_avg"] == pytest.approx(
+        mock_resource_monitor.system_cpu_percent_avg
+    )
+    assert summary_data["system_cpu_percent_per_core_avg"] == list(
+        mock_resource_monitor.system_cpu_percent_per_core_avg
+    )
 
 
-def test_measure_uses_settings_file(tmp_path, mock_inlet_worker, mock_compute_metrics):
+def test_measure_uses_settings_file(
+    tmp_path, mock_inlet_worker, mock_compute_metrics, mock_resource_monitor
+):
     """Ensure a settings file provides defaults for the measure command."""
     output_dir = tmp_path / "settings_run"
     settings_path = tmp_path / "settings.toml"
@@ -274,7 +334,7 @@ def test_measure_uses_settings_file(tmp_path, mock_inlet_worker, mock_compute_me
 
 
 def test_measure_env_overrides_settings(
-    tmp_path, mock_inlet_worker, mock_compute_metrics
+    tmp_path, mock_inlet_worker, mock_compute_metrics, mock_resource_monitor
 ):
     """Environment variables should override values from the settings file."""
     settings_output = tmp_path / "settings_base"
@@ -308,7 +368,9 @@ def test_measure_env_overrides_settings(
     assert summary_data["parameters"]["duration_seconds"] == 0.3
 
 
-def test_measure_cli_overrides_env(tmp_path, mock_inlet_worker, mock_compute_metrics):
+def test_measure_cli_overrides_env(
+    tmp_path, mock_inlet_worker, mock_compute_metrics, mock_resource_monitor
+):
     """CLI arguments should take precedence over environment variables."""
     settings_path = tmp_path / "settings.toml"
     settings_path.write_text("[measure]\nduration_seconds = 0.1\n")

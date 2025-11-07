@@ -15,6 +15,7 @@ import os
 import platform
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Annotated
 
@@ -203,19 +204,22 @@ def measure(
     resource_usage = (
         resource_monitor.snapshot() if resource_monitor is not None else None
     )
-    # Merge summary fields and resource usage into a single dictionary
-    summary_dict = dict(summary.__dict__)
     if resource_usage is not None:
-        summary_dict.update(
-            {
-                "process_cpu_percent_avg": resource_usage.process_cpu_percent_avg,
-                "process_rss_avg_bytes": resource_usage.process_rss_avg_bytes,
-                "system_cpu_percent_avg": resource_usage.system_cpu_percent_avg,
-                "system_cpu_percent_per_core_avg": (
-                    resource_usage.system_cpu_percent_per_core_avg
-                ),
-            }
+        # Replace the ``Summary`` instance so every downstream consumer observes
+        # a consistent view of the recorded resource statistics.  Mutating in
+        # place risks stale values if other references exist.
+        summary = replace(
+            summary,
+            process_cpu_percent_avg=resource_usage.process_cpu_percent_avg,
+            process_rss_avg_bytes=resource_usage.process_rss_avg_bytes,
+            system_cpu_percent_avg=resource_usage.system_cpu_percent_avg,
+            system_cpu_percent_per_core_avg=tuple(
+                resource_usage.system_cpu_percent_per_core_avg
+            ),
         )
+
+    # Merge summary fields and resource usage into a single dictionary
+    summary_dict = dict(vars(summary))
     metadata = {
         "environment": {
             "python": sys.version.split()[0],
