@@ -234,7 +234,10 @@ def measure(
                 setattr(summary, field, value)
 
     # Merge summary fields and resource usage into a single dictionary
-    summary_dict = dict(vars(summary))
+    # ``summary`` may be either the ``Summary`` dataclass or a ``SimpleNamespace``
+    # provided by tests.  Copy the attribute mapping explicitly so subsequent
+    # updates do not mutate the original object.
+    summary_dict = dict(summary.__dict__)
     metadata = {
         "environment": {
             "python": sys.version.split()[0],
