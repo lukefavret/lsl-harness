@@ -210,23 +210,18 @@ def measure(
         # supply a lightweight namespace instead of the dataclass; in that
         # situation fall back to attribute assignment to avoid ``dataclasses``
         # runtime errors while still keeping the metrics aligned.
-        per_core_average = getattr(
-            resource_usage, "system_cpu_percent_per_core_avg", None
-        )
-        updated_fields = {
-            "process_cpu_percent_avg": getattr(
-                resource_usage, "process_cpu_percent_avg", None
-            ),
-            "process_rss_avg_bytes": getattr(
-                resource_usage, "process_rss_avg_bytes", None
-            ),
-            "system_cpu_percent_avg": getattr(
-                resource_usage, "system_cpu_percent_avg", None
-            ),
-            "system_cpu_percent_per_core_avg": (
-                tuple(per_core_average) if per_core_average is not None else ()
-            ),
+        resource_field_defaults = {
+            "process_cpu_percent_avg": None,
+            "process_rss_avg_bytes": None,
+            "system_cpu_percent_avg": None,
+            "system_cpu_percent_per_core_avg": (),
         }
+        updated_fields = {
+            field: getattr(resource_usage, field, default)
+            for field, default in resource_field_defaults.items()
+        }
+        if updated_fields["system_cpu_percent_per_core_avg"] is None:
+            updated_fields["system_cpu_percent_per_core_avg"] = ()
         if is_dataclass(summary):
             summary = replace(summary, **updated_fields)
         else:
