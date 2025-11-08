@@ -224,7 +224,7 @@ def measure(
                 resource_usage, "system_cpu_percent_avg", None
             ),
             "system_cpu_percent_per_core_avg": (
-                tuple(per_core_average) if per_core_average is not None else None
+                tuple(per_core_average) if per_core_average is not None else ()
             ),
         }
         if is_dataclass(summary):
