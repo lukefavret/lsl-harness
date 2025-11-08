@@ -15,6 +15,7 @@ import os
 import platform
 import sys
 import time
+from dataclasses import is_dataclass, replace
 from pathlib import Path
 from typing import Annotated
 
@@ -203,19 +204,35 @@ def measure(
     resource_usage = (
         resource_monitor.snapshot() if resource_monitor is not None else None
     )
-    # Merge summary fields and resource usage into a single dictionary
-    summary_dict = dict(summary.__dict__)
     if resource_usage is not None:
-        summary_dict.update(
-            {
-                "process_cpu_percent_avg": resource_usage.process_cpu_percent_avg,
-                "process_rss_avg_bytes": resource_usage.process_rss_avg_bytes,
-                "system_cpu_percent_avg": resource_usage.system_cpu_percent_avg,
-                "system_cpu_percent_per_core_avg": (
-                    resource_usage.system_cpu_percent_per_core_avg
-                ),
-            }
-        )
+        # Replace the ``Summary`` instance when possible so downstream
+        # references observe resource metrics consistently.  Test doubles may
+        # supply a lightweight namespace instead of the dataclass; in that
+        # situation fall back to attribute assignment to avoid ``dataclasses``
+        # runtime errors while still keeping the metrics aligned.
+        resource_field_defaults = {
+            "process_cpu_percent_avg": None,
+            "process_rss_avg_bytes": None,
+            "system_cpu_percent_avg": None,
+            "system_cpu_percent_per_core_avg": (),
+        }
+        updated_fields = {
+            field: getattr(resource_usage, field, default)
+            for field, default in resource_field_defaults.items()
+        }
+        if updated_fields["system_cpu_percent_per_core_avg"] is None:
+            updated_fields["system_cpu_percent_per_core_avg"] = ()
+        if is_dataclass(summary):
+            summary = replace(summary, **updated_fields)
+        else:
+            for field, value in updated_fields.items():
+                setattr(summary, field, value)
+
+    # Merge summary fields and resource usage into a single dictionary
+    # ``summary`` may be either the ``Summary`` dataclass or a ``SimpleNamespace``
+    # provided by tests.  Copy the attribute mapping explicitly so subsequent
+    # updates do not mutate the original object.
+    summary_dict = dict(summary.__dict__)
     metadata = {
         "environment": {
             "python": sys.version.split()[0],
