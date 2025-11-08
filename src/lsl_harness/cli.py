@@ -15,7 +15,7 @@ import os
 import platform
 import sys
 import time
-from dataclasses import replace
+from dataclasses import is_dataclass, replace
 from pathlib import Path
 from typing import Annotated
 
@@ -205,18 +205,33 @@ def measure(
         resource_monitor.snapshot() if resource_monitor is not None else None
     )
     if resource_usage is not None:
-        # Replace the ``Summary`` instance so every downstream consumer observes
-        # a consistent view of the recorded resource statistics.  Mutating in
-        # place risks stale values if other references exist.
-        summary = replace(
-            summary,
-            process_cpu_percent_avg=resource_usage.process_cpu_percent_avg,
-            process_rss_avg_bytes=resource_usage.process_rss_avg_bytes,
-            system_cpu_percent_avg=resource_usage.system_cpu_percent_avg,
-            system_cpu_percent_per_core_avg=tuple(
-                resource_usage.system_cpu_percent_per_core_avg
-            ),
+        # Replace the ``Summary`` instance when possible so downstream
+        # references observe resource metrics consistently.  Test doubles may
+        # supply a lightweight namespace instead of the dataclass; in that
+        # situation fall back to attribute assignment to avoid ``dataclasses``
+        # runtime errors while still keeping the metrics aligned.
+        per_core_average = getattr(
+            resource_usage, "system_cpu_percent_per_core_avg", None
         )
+        updated_fields = {
+            "process_cpu_percent_avg": getattr(
+                resource_usage, "process_cpu_percent_avg", None
+            ),
+            "process_rss_avg_bytes": getattr(
+                resource_usage, "process_rss_avg_bytes", None
+            ),
+            "system_cpu_percent_avg": getattr(
+                resource_usage, "system_cpu_percent_avg", None
+            ),
+            "system_cpu_percent_per_core_avg": (
+                tuple(per_core_average) if per_core_average is not None else None
+            ),
+        }
+        if is_dataclass(summary):
+            summary = replace(summary, **updated_fields)
+        else:
+            for field, value in updated_fields.items():
+                setattr(summary, field, value)
 
     # Merge summary fields and resource usage into a single dictionary
     summary_dict = dict(vars(summary))
